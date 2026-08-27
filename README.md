@@ -129,3 +129,11 @@ GitHub Pages kök diziniyle uyumlu hale getirir. Apple Pencil ve mouse çizimi k
 - **Kalem**: PDF üzerinde kalıcıdır; kullanıcı isterse **Kalem Yazısını Nota Ekle** ile son kalem yazısının bulunduğu sayfadaki kalem anotasyonunu Notlarım'a görüntü olarak ekleyebilir.
 - Kalem notu oluşturulurken fosfor dahil edilmez. Silgi etkisi korunur.
 - Özetim / Notlarım bölümünde eklenen kalem notları görüntülenebilir, ilgili PDF sayfasına dönülebilir veya ayrı olarak silinebilir.
+
+
+## v2.4 Kalem / Fosfor yeniden düzenlendi
+PDF araçları artık doğrudan **Gezin / Kalem / Fosfor / Silgi** şeklindedir.
+- Gezin: kaydırma ve metin seçme.
+- Kalem: Apple Pencil veya mouse ile yazma; yalnızca Kalem yazıları isteğe bağlı olarak Notlarım'a eklenebilir.
+- Fosfor: sarı, kalıcı görsel hatırlatıcıdır; Notlarım'a aktarılmaz.
+- Silgi: PDF üzerindeki kalem ve fosfor anotasyonlarını siler.

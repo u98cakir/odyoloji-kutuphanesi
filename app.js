@@ -93,7 +93,34 @@ async function renderArticle(){
   tab.innerHTML=`<div class="ink-workspace"><div class="ink-toolbar"><div class="tool-group"><button class="ink-tool active" data-tool="pen">✎ Kalem</button><button class="ink-tool" data-tool="marker">▰ Fosforlu</button><button class="ink-tool" data-tool="eraser">⌫ Silgi</button></div><div class="tool-group"><label>Kalınlık <input id="inkSize" type="range" min="1" max="16" value="3"></label><input id="inkColor" class="ink-color" type="color" value="#35245f" title="Kalem rengi"></div><div class="tool-group"><button class="mini-btn" id="inkUndo">↶ Geri</button><button class="mini-btn" id="inkRedo">↷ İleri</button><button class="mini-btn danger" id="inkClear">Temizle</button></div><label class="pencil-only"><input id="pencilOnly" type="checkbox" checked> Parmakla çizimi kapat (Mouse + Apple Pencil açık)</label></div><div class="ink-paper-wrap"><canvas id="inkCanvas" class="ink-canvas" aria-label="Apple Pencil not alanı"></canvas><div class="ink-hint">Apple Pencil veya mouse ile bu alana doğrudan yazabilirsiniz. Çizimler otomatik kaydedilir.</div></div></div>`;
   initInkCanvas($('#inkCanvas'),a)
  } else if(state.articleTab==='pdf'){
-  tab.innerHTML=pdfUrl?`<div class="pdf-smart-layout"><div class="pdf-annotate-workspace"><div class="pdf-ink-toolbar"><div class="tool-group"><button class="pdf-mode active" data-mode="navigate">☝ Gezin</button><button class="pdf-mode" data-mode="draw">✎ PDF Üzerine Yaz</button></div><div class="tool-group pdf-draw-tools"><button class="pdf-ink-tool active" data-tool="pen">✎ Kalem</button><button class="pdf-ink-tool" data-tool="marker">▰ Fosforlu</button><button class="pdf-ink-tool" data-tool="eraser">⌫ Silgi</button><label>Kalınlık <input id="pdfInkSize" type="range" min="1" max="18" value="3"></label><input id="pdfInkColor" class="ink-color" type="color" value="#7c3aed"></div><div class="tool-group"><button class="mini-btn" id="pdfInkUndo">↶</button><button class="mini-btn" id="pdfInkRedo">↷</button><button class="mini-btn danger" id="pdfInkClear">Temizle</button></div><label class="pencil-only"><input id="pdfPencilOnly" type="checkbox" checked> Parmakla çizimi kapat (Mouse + Apple Pencil açık)</label></div><div class="pdf-panel pdf-annotatable"><div id="pdfRenderScroll" class="pdf-render-scroll" aria-label="PDF okuyucu"></div><div class="pdf-ink-hint" id="pdfInkHint">Gezin modunda PDF'yi kaydırın. “PDF Üzerine Yaz” ile Apple Pencil veya mouse anotasyonunu açın.</div></div></div><aside class="smart-note-panel"><div><h3>Akıllı Notlar</h3><p><strong>Gezin</strong> modunda PDF metnini seçin; çıkan “Notlarıma Ekle” düğmesiyle seçimi doğrudan Özetim’e gönderin. Kopyalama yöntemi de kullanılabilir.</p></div><button class="primary-btn full-btn" id="addPdfSelection">＋ Seçili Metni Notlarıma Ekle</button><small>Gezin modunda cümleyi mouse veya parmakla seçin. Seçim varsa tek dokunuşla aktarılır.</small><button class="mini-btn full-btn" id="captureClipboard">📋 Panodaki Metni Notlarıma Ekle</button><div class="smart-divider"></div><label><strong>Kenar Notu</strong><span>iPad Scribble açıksa Apple Pencil ile kutuya yazdığınız el yazısı otomatik metne çevrilir.</span><textarea id="marginNote" rows="7" placeholder="Apple Pencil ile buraya yazın…"></textarea></label><div class="smart-status" id="marginStatus">Yazdıklarınız 1 saniye sonra otomatik kaydedilir.</div><button class="primary-btn full-btn" id="saveInkSnapshot">✎ Kalem Yazısını Nota Ekle</button><small class="pen-note-help">Yalnızca Kalem çizimleri eklenir. Fosforlu işaretler PDF üzerinde hatırlatıcı olarak kalır ve nota aktarılmaz.</small><div id="smartNoteHistory" class="smart-note-history"></div></aside></div>`:`<div class="pdf-panel no-pdf">Bu makaleye henüz PDF eklenmemiş.</div>`;
+  tab.innerHTML=pdfUrl?`<div class="pdf-smart-layout"><div class="pdf-annotate-workspace"><div class="pdf-ink-toolbar simple-annot-toolbar">
+<div class="tool-group main-annot-tools">
+<button class="pdf-direct-tool active" data-tool="navigate">☝ Gezin</button>
+<button class="pdf-direct-tool" data-tool="pen">✎ Kalem</button>
+<button class="pdf-direct-tool" data-tool="marker">▰ Fosfor</button>
+<button class="pdf-direct-tool" data-tool="eraser">⌫ Silgi</button>
+</div>
+<div class="tool-group annot-settings">
+<label>Kalınlık <input id="pdfInkSize" type="range" min="1" max="18" value="3"></label>
+<input id="pdfInkColor" class="ink-color" type="color" value="#7c3aed">
+</div>
+<div class="tool-group">
+<button class="mini-btn" id="pdfInkUndo">↶ Geri</button>
+<button class="mini-btn" id="pdfInkRedo">↷ İleri</button>
+<button class="mini-btn danger" id="pdfInkClear">Tüm Anotasyonları Temizle</button>
+</div>
+<label class="pencil-only"><input id="pdfPencilOnly" type="checkbox" checked> Parmakla çizimi kapat (Mouse + Apple Pencil açık)</label>
+</div><div class="pdf-panel pdf-annotatable"><div id="pdfRenderScroll" class="pdf-render-scroll" aria-label="PDF okuyucu"></div><div class="pdf-ink-hint" id="pdfInkHint">Gezin modunda PDF'yi kaydırın. “PDF Üzerine Yaz” ile Apple Pencil veya mouse anotasyonunu açın.</div></div></div><aside class="smart-note-panel"><div><h3>Notlara Aktar</h3><p>Buradan yalnızca istediğiniz içerikleri Notlarım’a gönderirsiniz.</p></div>
+<button class="primary-btn full-btn" id="addPdfSelection">＋ Seçili Metni Notlarım’a Ekle</button>
+<small><strong>Gezin</strong> aracındayken PDF’den cümleyi seçin.</small>
+<div class="smart-divider"></div>
+<button class="primary-btn full-btn pen-only-action" id="saveInkSnapshot">✎ Kalem Yazısını Notlarım’a Ekle</button>
+<small class="pen-note-help"><strong>Fosfor Notlarım’a aktarılmaz.</strong> Fosfor sadece PDF üzerinde kalıcı hatırlatıcıdır.</small>
+<div class="smart-divider"></div>
+<label><strong>Kenar Notu</strong><span>iPad Scribble ile yazarsanız metne çevrilebilir.</span><textarea id="marginNote" rows="6" placeholder="İsteğe bağlı kenar notu…"></textarea></label>
+<div class="smart-status" id="marginStatus">Kenar notu yazıldığında otomatik olarak Notlarım’a aktarılır.</div>
+<button class="mini-btn full-btn" id="captureClipboard">📋 Panodaki Metni Notlarım’a Ekle</button>
+<div id="smartNoteHistory" class="smart-note-history"></div></aside></div>`:`<div class="pdf-panel no-pdf">Bu makaleye henüz PDF eklenmemiş.</div>`;
   if(pdfUrl){initPdfInkCanvas($('#pdfRenderScroll'),a,pdfUrl).then(()=>initSmartNotes(a,$('#pdfRenderScroll .pdf-page-ink-canvas')))}
  } else if(state.articleTab==='split'){
   tab.innerHTML=`<div class="split-panel"><div class="split-document"><div class="panel-title"><h3>Orijinal Makale</h3></div>${pdfUrl?`<div id="splitPdfRenderScroll" class="pdf-render-scroll split-pdf-scroll" aria-label="PDF okuyucu"></div>`:`<div class="no-pdf">Makale PDF’si eklenmemiş.</div>`}</div><div class="split-summary"><div class="panel-title"><h3>Özet PDF + Notlar</h3><button class="mini-btn" id="splitHandwriting">✎ El Yazısı</button></div>${summaryPdfUrl?`<iframe src="${summaryPdfUrl}"></iframe>`:`<div class="no-pdf compact">Özet PDF’si eklenmemiş.</div>`}<div class="note-editor split-notes"><textarea id="summarySplit">${esc(a.summary||'')}</textarea><button class="primary-btn" id="saveSplit">Notu Kaydet</button></div></div></div>`;$('#saveSplit').onclick=()=>{a.summary=$('#summarySplit').value;save();toast('Not kaydedildi')};$('#splitHandwriting').onclick=()=>{capturePdfReadingPosition(a);state.articleTab='handwriting';renderArticle()};if(pdfUrl)initPdfReadOnly($('#splitPdfRenderScroll'),a,pdfUrl)
@@ -188,8 +215,8 @@ function initPdfInkCanvas(container,a,pdfUrl){
   if(typeof pdfjsLib==='undefined')throw new Error('PDF okuyucu yüklenemedi.');
   pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   const pdf=await pdfjsLib.getDocument(pdfUrl).promise;
-  let tool='pen',mode='navigate',drawing=false,current=null,redo=[];
-  a.pdfInkStrokes=(a.pdfInkStrokes||[]).filter(st=>Number.isInteger(st.page));
+  let activeTool='navigate',drawing=false,current=null,redo=[];
+  a.pdfInkStrokes=(a.pdfInkStrokes||[]).filter(st=>Number.isInteger(st.page)&&['pen','marker','eraser'].includes(st.tool));
   const pages=new Map();
 
   async function renderPage(pageNo){
@@ -206,9 +233,8 @@ function initPdfInkCanvas(container,a,pdfUrl){
    shell.append(pdfCanvas,textLayer,ink,badge);container.appendChild(shell);
    const dpr=Math.max(1,window.devicePixelRatio||1);
    pdfCanvas.width=Math.round(viewport.width*dpr);pdfCanvas.height=Math.round(viewport.height*dpr);pdfCanvas.style.width=viewport.width+'px';pdfCanvas.style.height=viewport.height+'px';
-   const pctx=pdfCanvas.getContext('2d');
-   await page.render({canvasContext:pctx,viewport,transform:dpr!==1?[dpr,0,0,dpr,0,0]:null}).promise;
-   // Gezin modunda gerçek PDF metnini seçilebilir bir katman olarak yerleştir.
+   await page.render({canvasContext:pdfCanvas.getContext('2d'),viewport,transform:dpr!==1?[dpr,0,0,dpr,0,0]:null}).promise;
+
    try{
     const textContent=await page.getTextContent();
     state.indexCache[a.id]=state.indexCache[a.id]||[];state.indexCache[a.id][pageNo-1]=textContent.items.map(i=>i.str||'').join(' ').replace(/\s+/g,' ').trim();
@@ -218,13 +244,12 @@ function initPdfInkCanvas(container,a,pdfUrl){
      const tx=pdfjsLib.Util.transform(viewport.transform,item.transform);
      const span=document.createElement('span');span.textContent=item.str;
      span.style.left=tx[4]+'px';span.style.top=(tx[5]-Math.hypot(tx[2],tx[3]))+'px';
-     span.style.fontSize=Math.max(1,Math.hypot(tx[2],tx[3]))+'px';
-     span.style.fontFamily='sans-serif';
-     const angle=Math.atan2(tx[1],tx[0]);
-     if(angle)span.style.transform=`rotate(${angle}rad)`;
+     span.style.fontSize=Math.max(1,Math.hypot(tx[2],tx[3]))+'px';span.style.fontFamily='sans-serif';
+     const angle=Math.atan2(tx[1],tx[0]);if(angle)span.style.transform=`rotate(${angle}rad)`;
      textLayer.appendChild(span);
     }
    }catch(e){console.warn('PDF metin katmanı oluşturulamadı',e)}
+
    ink.width=Math.round(viewport.width*dpr);ink.height=Math.round(viewport.height*dpr);ink.style.width=viewport.width+'px';ink.style.height=viewport.height+'px';
    const ictx=ink.getContext('2d');ictx.setTransform(dpr,0,0,dpr,0,0);
    pages.set(pageNo,{shell,ink,ctx:ictx,w:viewport.width,h:viewport.height});
@@ -233,30 +258,62 @@ function initPdfInkCanvas(container,a,pdfUrl){
 
   function drawStroke(st){
    const pg=pages.get(st.page);if(!pg||!st.points?.length)return;
-   const {ctx,w,h}=pg;ctx.save();ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle=st.color;ctx.lineWidth=st.size;ctx.globalAlpha=st.tool==='marker'?.24:1;ctx.globalCompositeOperation=st.tool==='eraser'?'destination-out':'source-over';ctx.beginPath();const p=st.points[0];ctx.moveTo(p.x*w,p.y*h);for(const q of st.points.slice(1))ctx.lineTo(q.x*w,q.y*h);ctx.stroke();ctx.restore();
+   const {ctx,w,h}=pg;ctx.save();ctx.lineCap='round';ctx.lineJoin='round';
+   ctx.strokeStyle=st.tool==='marker'?(st.color||'#ffe066'):(st.color||'#35245f');
+   ctx.lineWidth=st.size;
+   ctx.globalAlpha=st.tool==='marker'?.28:1;
+   ctx.globalCompositeOperation=st.tool==='eraser'?'destination-out':'source-over';
+   ctx.beginPath();const p=st.points[0];ctx.moveTo(p.x*w,p.y*h);for(const q of st.points.slice(1))ctx.lineTo(q.x*w,q.y*h);ctx.stroke();ctx.restore();
   }
   function redrawPage(pageNo){const pg=pages.get(pageNo);if(!pg)return;pg.ctx.clearRect(0,0,pg.w,pg.h);for(const st of a.pdfInkStrokes.filter(x=>x.page===pageNo))drawStroke(st)}
   function redrawAll(){for(const n of pages.keys())redrawPage(n)}
   function point(e,canvas){const r=canvas.getBoundingClientRect();return{x:(e.clientX-r.left)/r.width,y:(e.clientY-r.top)/r.height,p:e.pressure||.5}}
   function allowed(e){const blockTouch=$('#pdfPencilOnly')?.checked;return e.pointerType!=='touch'||!blockTouch}
+
   function bindInk(canvas,pageNo){
-   canvas.onpointerdown=e=>{if(mode!=='draw'||!allowed(e))return;e.preventDefault();drawing=true;canvas.setPointerCapture?.(e.pointerId);current={page:pageNo,tool,color:$('#pdfInkColor').value,size:Number($('#pdfInkSize').value),points:[point(e,canvas)]};if(tool==='marker')current.size=Math.max(12,current.size*2.2);if(tool==='eraser')current.size=Math.max(20,current.size*2.2);a.pdfInkStrokes.push(current);redo=[];redrawPage(pageNo)};
+   canvas.onpointerdown=e=>{
+    if(activeTool==='navigate'||!allowed(e))return;
+    e.preventDefault();drawing=true;canvas.setPointerCapture?.(e.pointerId);
+    const baseSize=Number($('#pdfInkSize')?.value||3);
+    const color=$('#pdfInkColor')?.value||'#7c3aed';
+    current={page:pageNo,tool:activeTool,color,size:baseSize,points:[point(e,canvas)]};
+    if(activeTool==='marker'){current.size=Math.max(14,baseSize*2.5);current.color='#ffe066'}
+    if(activeTool==='eraser')current.size=Math.max(22,baseSize*2.7);
+    a.pdfInkStrokes.push(current);redo=[];redrawPage(pageNo)
+   };
    canvas.onpointermove=e=>{if(!drawing||!current||current.page!==pageNo)return;e.preventDefault();current.points.push(point(e,canvas));redrawPage(pageNo)};
-   const finish=()=>{if(!drawing)return;drawing=false;current=null;save()};canvas.onpointerup=finish;canvas.onpointercancel=finish;
+   const finish=()=>{if(!drawing)return;drawing=false;current=null;save()};
+   canvas.onpointerup=finish;canvas.onpointercancel=finish;canvas.onpointerleave=e=>{if(drawing&&e.buttons===0)finish()};
   }
-  function setMode(m){mode=m;container.classList.toggle('draw-mode',m==='draw');container.querySelectorAll('.pdf-page-ink-canvas').forEach(c=>c.classList.toggle('navigate',m==='navigate'));container.querySelectorAll('.pdf-text-layer').forEach(t=>t.classList.toggle('disabled',m==='draw'));document.querySelectorAll('.pdf-mode').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));$('#pdfInkHint').textContent=m==='draw'?'Apple Pencil veya mouse ile PDF üzerine yazabilirsiniz. Fosfor PDF’de kalıcı hatırlatıcıdır; yalnızca Kalem yazıları isteğe bağlı olarak Notlarım’a eklenir.':'Gezin modunda PDF metnini seçebilirsiniz. Seçtiğiniz cümleyi Akıllı Notlar’dan tek dokunuşla Notlarım’a aktarın.'}
+
+  function setTool(tool){
+   activeTool=tool;
+   const nav=tool==='navigate';
+   container.classList.toggle('draw-mode',!nav);
+   container.querySelectorAll('.pdf-page-ink-canvas').forEach(c=>c.classList.toggle('navigate',nav));
+   container.querySelectorAll('.pdf-text-layer').forEach(t=>t.classList.toggle('disabled',!nav));
+   document.querySelectorAll('.pdf-direct-tool').forEach(b=>b.classList.toggle('active',b.dataset.tool===tool));
+   const hint=$('#pdfInkHint');
+   if(hint){
+    hint.textContent=tool==='navigate'?'Gezin: PDF’yi kaydırın ve metin seçin.'
+      :tool==='pen'?'Kalem: Apple Pencil veya mouse ile yazın. İsterseniz sağdan Notlarım’a ekleyebilirsiniz.'
+      :tool==='marker'?'Fosfor: PDF üzerinde kalıcı hatırlatıcıdır. Notlarım’a aktarılmaz.'
+      :'Silgi: Kalem ve fosfor anotasyonlarını siler.';
+   }
+   const penBtn=$('#saveInkSnapshot');if(penBtn)penBtn.disabled=tool!=='pen';
+  }
 
   container.innerHTML='<div class="pdf-loading">PDF sayfaları hazırlanıyor…</div>';
   const loading=container.firstElementChild;
   for(let p=1;p<=pdf.numPages;p++)await renderPage(p);
-  loading?.remove();await putIndex(a.id,state.indexCache[a.id]||[]);save();
+  loading?.remove();
   restorePdfReadingPosition(container,a);watchPdfReadingPosition(container,a);
-  document.querySelectorAll('.pdf-mode').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
-  document.querySelectorAll('.pdf-ink-tool').forEach(b=>b.onclick=()=>{tool=b.dataset.tool;document.querySelectorAll('.pdf-ink-tool').forEach(x=>x.classList.toggle('active',x===b))});
+
+  document.querySelectorAll('.pdf-direct-tool').forEach(b=>b.onclick=()=>setTool(b.dataset.tool));
   $('#pdfInkUndo').onclick=()=>{if(a.pdfInkStrokes.length){redo.push(a.pdfInkStrokes.pop());save();redrawAll()}};
   $('#pdfInkRedo').onclick=()=>{if(redo.length){a.pdfInkStrokes.push(redo.pop());save();redrawAll()}};
-  $('#pdfInkClear').onclick=()=>{if(confirm('Bu PDF üzerindeki tüm anotasyonlar temizlensin mi?')){a.pdfInkStrokes=[];redo=[];save();redrawAll()}};
-  setMode('navigate');
+  $('#pdfInkClear').onclick=()=>{if(confirm('Bu PDF üzerindeki tüm kalem ve fosfor anotasyonları temizlensin mi?')){a.pdfInkStrokes=[];redo=[];save();redrawAll()}};
+  setTool('navigate');
  })().catch(err=>{console.error(err);container.innerHTML='<div class="no-pdf">PDF görüntülenirken hata oluştu.</div>';toast('PDF görüntülenemedi')})
 }
 

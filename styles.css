@@ -92,3 +92,19 @@ canvas{touch-action:none}
 .ink-note-card img{display:block;width:100%;height:150px;object-fit:contain;background:#fafafa}
 .ink-note-actions{display:flex;gap:8px;justify-content:space-between;padding:8px;flex-wrap:wrap}
 @media(max-width:650px){.ink-note-grid{grid-template-columns:1fr}.ink-note-card img{height:180px}}
+
+/* v2.4 simplified annotation toolbar */
+.simple-annot-toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.main-annot-tools{display:flex;gap:8px;flex-wrap:wrap}
+.pdf-direct-tool{border:1px solid var(--line);background:#fff;border-radius:10px;padding:9px 12px;font-weight:600;cursor:pointer}
+.pdf-direct-tool.active{background:#6d3df5;color:#fff;border-color:#6d3df5}
+.pdf-direct-tool[data-tool="marker"].active{background:#ffe066;color:#3a3000;border-color:#e7c600}
+.pdf-direct-tool[data-tool="eraser"].active{background:#fff1f2;color:#b42318;border-color:#fecdd3}
+.pen-only-action:disabled{opacity:.45;cursor:not-allowed}
+.annot-settings{display:flex;gap:8px;align-items:center}
+@media(max-width:800px){
+ .simple-annot-toolbar{align-items:stretch}
+ .main-annot-tools{width:100%;display:grid;grid-template-columns:repeat(4,1fr)}
+ .pdf-direct-tool{width:100%;padding:12px 8px}
+ .annot-settings{width:100%;justify-content:space-between}
+}
