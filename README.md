@@ -116,3 +116,9 @@ Bu sürüm iPad Ana Ekranı'na kurulabilen bir PWA'dır.
 Ana ekrandan açıldığında tarayıcı sekmeleri görünmeden uygulama görünümünde çalışır. Uygulama kabuğu ilk başarılı açılıştan sonra önbelleğe alınır. PDF dosyaları ve kişisel veriler cihazın IndexedDB/localStorage alanında tutulduğu için düzenli olarak **Tam Yedek ZIP** oluşturmanız önerilir.
 
 > Not: PWA kurulumu ve Service Worker için uygulamanın `file://` olarak değil HTTPS (veya geliştirmede localhost) üzerinden açılması gerekir.
+
+
+## Tablet Final v2
+Bu paket iPad Safari/PWA kullanımı için dokunmatik hedefleri büyütür, yatay/dikey düzeni optimize eder,
+Safari form yakınlaştırmasını azaltır, PDF araç çubuğunu tablet kullanımında sabit tutar ve PWA ikon yollarını
+GitHub Pages kök diziniyle uyumlu hale getirir. Apple Pencil ve mouse çizimi korunur; parmak gezinme için kullanılabilir.

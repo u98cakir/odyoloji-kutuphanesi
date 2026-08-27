@@ -44,3 +44,40 @@
 /* Professional academic workflow */
 .toolbar-inline,.ask-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.ask-row input{flex:1;min-width:220px;border:1px solid var(--line);border-radius:10px;padding:11px 12px;background:var(--surface,#fff);color:inherit}.assistant-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.assistant-card{background:var(--card,#fff);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:var(--shadow)}.assistant-card.full{grid-column:1/-1}.academic-summary{display:grid;grid-template-columns:110px 1fr;gap:10px 14px}.academic-summary dt{font-weight:700;color:var(--muted)}.academic-summary dd{margin:0;line-height:1.55}.answer-box{margin-top:12px;padding:14px;border-radius:12px;background:var(--soft,#f7f5fb);min-height:90px;line-height:1.55}.smart-note-item.smart-note-jump{width:100%;text-align:left;border:1px solid var(--line);background:var(--card,#fff);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:5px;cursor:pointer}.smart-note-item small{color:var(--muted)}.compare-checks{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:8px}.compare-checks label{display:grid;grid-template-columns:auto 1fr;gap:4px 8px;align-items:start;border:1px solid var(--line);border-radius:12px;padding:12px}.compare-checks small{grid-column:2;color:var(--muted)}.compare-table-wrap{margin-top:18px;overflow:auto;border:1px solid var(--line);border-radius:14px}.compare-table{border-collapse:collapse;min-width:900px;width:100%;background:var(--card,#fff)}.compare-table th,.compare-table td{border-bottom:1px solid var(--line);border-right:1px solid var(--line);padding:12px;vertical-align:top;line-height:1.45}.compare-table th{background:var(--soft,#f7f5fb);text-align:left}.library-assistant{max-width:1000px;margin:0 auto}.selection-ready{animation:selectionPulse 1.3s ease-in-out infinite}@keyframes selectionPulse{50%{transform:translateY(-1px)}}
 @media(max-width:900px){.assistant-grid{grid-template-columns:1fr}.assistant-card.full{grid-column:auto}.academic-summary{grid-template-columns:1fr}.academic-summary dt{margin-top:8px}}
+
+
+/* === Tablet Final UX overrides === */
+:root{--tap:44px}
+button,.nav-item,.tab,.mini-btn,.primary-btn,.tool-btn,input,select,textarea{touch-action:manipulation}
+button,.mini-btn,.tool-btn,.pdf-mode,.tab{min-height:var(--tap)}
+.pdf-toolbar{position:sticky;top:0;z-index:30;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.pdf-pages-container{-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.pdf-text-layer{-webkit-touch-callout:default}
+canvas{touch-action:none}
+@media (hover:none) and (pointer:coarse){
+  :root{--tap:48px}
+  body{font-size:16px}
+  .sidebar{width:220px}
+  .nav-item{padding:13px 14px}
+  .primary-btn,.mini-btn,.tool-btn,.pdf-mode,.tab{padding:11px 14px;font-size:15px}
+  input,select,textarea{font-size:16px} /* iPad Safari zoomunu engeller */
+  .pdf-toolbar{gap:8px;overflow-x:auto;scrollbar-width:none}
+  .pdf-toolbar::-webkit-scrollbar{display:none}
+  .article-tabs{overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch}
+  .pdf-page-shell{margin-inline:auto}
+}
+@media (orientation:portrait) and (max-width:1024px){
+  .sidebar{width:100%;height:auto;position:relative;border-right:0;border-bottom:1px solid var(--border)}
+  .app-shell{display:block}
+  .sidebar nav{display:flex;overflow-x:auto;gap:6px;padding:8px 12px}
+  .sidebar .nav-item{flex:0 0 auto}
+  .main-content{padding:18px}
+  .fields-grid,.article-layout,.together-grid,.smart-grid{grid-template-columns:1fr!important}
+}
+@media (orientation:landscape) and (min-width:768px) and (max-width:1366px){
+  .main-content{padding:20px 22px}
+  .sidebar{width:210px}
+}
+@supports (padding: max(0px)){
+  body{padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
+}

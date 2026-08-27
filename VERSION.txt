@@ -1,3 +1,2 @@
-Odyoloji Makale Kütüphanesi
-Professional Prototype 0.9
-Tarih: 2026-08-27
+Tablet Final PWA v2.0
+2026-08-27
