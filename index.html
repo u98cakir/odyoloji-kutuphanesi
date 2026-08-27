@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#7c3aed" />
+<link rel="manifest" href="manifest.webmanifest" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Audiology Library" />
+  <link rel="apple-touch-icon" href="icons/icon-180.png" />
+  <title>Odyoloji Makale Kütüphanesi</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-mark">A</div><div><strong>Audiology Library</strong><span>Akademik çalışma alanı</span></div></div>
+      <nav>
+        <button class="nav-item active" data-view="home">⌂ <span>Ana Sayfa</span></button>
+        <button class="nav-item" data-view="search">⌕ <span>Arama</span></button>
+        <button class="nav-item" data-view="favorites">☆ <span>Yıldızlılar</span></button>
+        <button class="nav-item" data-view="reread">↻ <span>Tekrar Okunacaklar</span></button>
+        <button class="nav-item" data-view="missing">▧ <span>Özeti Eksik Olanlar</span></button>
+        <button class="nav-item" data-view="recent">◷ <span>Son Eklenenler</span></button>
+        <button class="nav-item" data-view="thesis">★ <span>Tez Havuzu</span></button>
+        <button class="nav-item" data-view="compare">⇄ <span>Makale Karşılaştır</span></button>
+        <button class="nav-item" data-view="insights">✦ <span>Akademik Asistan</span></button>
+      </nav>
+      <div class="sidebar-bottom"><button class="nav-item" id="bulkBtn">＋ <span>Toplu PDF Ekle</span></button><button class="nav-item" id="exportBtn">⇩ <span>Tam Yedek ZIP</span></button><button class="nav-item" id="importBtn">⇧ <span>Yedeği Geri Yükle</span></button></div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <button id="backBtn" class="icon-btn hidden">‹</button>
+        <div class="topbar-title"><h1 id="pageTitle">Merhaba, iyi çalışmalar! 🌿</h1><p id="pageSubtitle">Makalelerinizi, notlarınızı ve kaynakçanızı tek yerde yönetin.</p></div>
+        <button id="addArticleBtn" class="primary-btn">＋ Makale Ekle</button>
+      </header>
+      <section id="content"></section>
+    </main>
+  </div>
+
+  <dialog id="articleDialog" class="modal">
+    <form method="dialog" id="articleForm">
+      <div class="modal-head"><div><h2>Makale Ekle</h2><p>PDF ve temel bilgileri ekleyin. Sonradan düzenleyebilirsiniz.</p></div><button class="icon-btn" value="cancel">×</button></div>
+      <div class="form-grid">
+        <label class="full">Orijinal makale PDF'si<input id="pdfFile" type="file" accept="application/pdf" /><small>PDF seçildiğinde başlık, yazarlar, yıl, dergi ve DOI otomatik okunmaya çalışılır.</small><div id="pdfMetaStatus" class="pdf-meta-status"></div></label>
+        <label class="full">Özet PDF'si<input id="summaryPdfFile" type="file" accept="application/pdf" /><small>GoodNotes'tan dışa aktarılan el yazısı not/özet PDF'si veya hazırlanmış özet dosyası.</small></label>
+        <label class="full">Makale başlığı<input id="title" required placeholder="Örn. Vestibular Migraine and VEMP" /></label>
+        <label>Yazarlar<input id="authors" placeholder="Smith, J.; Lee, K.; ..." /></label>
+        <label>Yıl<input id="year" type="number" min="1900" max="2100" value="2026" /></label>
+        <label>Dergi<input id="journal" placeholder="Otology & Neurotology" /></label>
+        <label>DOI<input id="doi" placeholder="10.xxxx/xxxx" /></label>
+        <label>Ders / Alan<select id="course"></select></label>
+        <label>Alt başlık<select id="topic"></select></label>
+        <label class="full">Etiketler<input id="tags" placeholder="tez, önemli, metodoloji" /></label>
+        <label class="full">Kendi özetim<textarea id="summary" rows="6" placeholder="Amaç, metodoloji, sonuçlar ve kendi notlarınız..."></textarea></label>
+        <label class="check"><input id="favorite" type="checkbox" /> Tezimde kullanacağım / yıldızla</label>
+        <label class="check"><input id="reread" type="checkbox" /> Tekrar okunacak</label>
+      </div>
+      <div class="modal-actions"><button value="cancel" class="ghost-btn">Vazgeç</button><button id="saveArticleBtn" value="default" class="primary-btn">Kaydet</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="courseDialog" class="modal small-modal">
+    <form method="dialog" id="courseForm">
+      <div class="modal-head"><div><h2>Yeni Ders / Alan</h2><p>Ders ve alt başlıkları virgülle ayırarak ekleyin.</p></div><button class="icon-btn" value="cancel">×</button></div>
+      <label>Ders adı<input id="courseName" required placeholder="Örn. Tinnitus" /></label>
+      <label>Alt başlıklar<textarea id="courseTopics" rows="4" placeholder="Değerlendirme, Tedavi, Psikoakustik ölçümler"></textarea></label>
+      <div class="modal-actions"><button value="cancel" class="ghost-btn">Vazgeç</button><button value="default" class="primary-btn">Ekle</button></div>
+    </form>
+  </dialog>
+
+  <input type="file" id="importFile" accept="application/zip,.zip" hidden />
+  <input type="file" id="bulkPdfFile" accept="application/pdf" multiple hidden />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="app.js"></script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js').catch(console.error);
+      });
+    }
+  </script>
+
+</body>
+</html>

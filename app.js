@@ -1,0 +1,377 @@
+const DEFAULT_COURSES=[
+ {id:'vestibuler',name:'Vestibüler',topics:['BPPV','Ménière Hastalığı','Vestibüler Migren','VEMP','vHIT','Kalorik Test','Postürografi','Vestibüler Rehabilitasyon','Santral Vestibüler Bozukluklar','Pediatrik Vestibüler Sistem']},
+ {id:'isitme-cihazlari',name:'İşitme Cihazları',topics:['Doğrulama','REM','Fitting','Yönlülük','Gürültü Azaltma']},
+ {id:'koklear-implant',name:'Koklear İmplant',topics:['Adaylık','Programlama','Konuşma Algısı','Pediatrik CI']},
+ {id:'pediatrik',name:'Pediatrik Odyoloji',topics:['Yenidoğan Tarama','Davranışsal Testler','Erken Müdahale']},
+ {id:'elektrofizyoloji',name:'Elektrofizyoloji',topics:['ABR','ASSR','OAE','ECochG']},
+ {id:'psikoakustik',name:'Psikoakustik',topics:['Frekans Seçiciliği','Loudness','Temporal İşleme']}
+];
+let state={courses:[],articles:[],view:'home',courseId:null,topic:null,currentArticleId:null,articleTab:'summary',indexCache:{},settings:{}};
+const $=s=>document.querySelector(s), content=$('#content');
+
+async function db(){return await new Promise((resolve,reject)=>{const r=indexedDB.open('audiologyLibrary',2);r.onupgradeneeded=()=>{const d=r.result;if(!d.objectStoreNames.contains('files'))d.createObjectStore('files');if(!d.objectStoreNames.contains('textIndex'))d.createObjectStore('textIndex')};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
+async function putFile(id,file){const d=await db();return new Promise((res,rej)=>{const t=d.transaction('files','readwrite');t.objectStore('files').put(file,id);t.oncomplete=res;t.onerror=()=>rej(t.error)})}
+async function getFile(id){const d=await db();return new Promise((res,rej)=>{const t=d.transaction('files','readonly');const r=t.objectStore('files').get(id);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+async function deleteFile(id){const d=await db();return new Promise((res,rej)=>{const t=d.transaction('files','readwrite');t.objectStore('files').delete(id);t.oncomplete=res;t.onerror=()=>rej(t.error)})}
+async function putIndex(id,pages){const d=await db();return new Promise((res,rej)=>{const t=d.transaction('textIndex','readwrite');t.objectStore('textIndex').put(pages||[],id);t.oncomplete=res;t.onerror=()=>rej(t.error)})}
+async function getIndex(id){const d=await db();return new Promise((res,rej)=>{const t=d.transaction('textIndex','readonly');const r=t.objectStore('textIndex').get(id);r.onsuccess=()=>res(r.result||[]);r.onerror=()=>rej(r.error)})}
+async function deleteIndex(id){const d=await db();return new Promise((res,rej)=>{const t=d.transaction('textIndex','readwrite');t.objectStore('textIndex').delete(id);t.oncomplete=res;t.onerror=()=>rej(t.error)})}
+function articlePages(a){return state.indexCache?.[a.id]||a.pageTexts||[]}
+function cleanLegacyAutoNoteText(text=''){return String(text)
+ .replace(/(?:^|\n\n?)\[(?:El Yazısı Notu|Kenar Notu|Alıntı)\s*·[^\]]+\]\n?/g,'\n\n')
+ .replace(/(?:^|\n\n?)PDF üzerindeki el yazısı\/anotasyon bu makaleye iliştirildi\.?/g,'')
+ .replace(/\n{3,}/g,'\n\n').trim()}
+function load(){const saved=JSON.parse(localStorage.getItem('audiology-state')||'null');state.courses=saved?.courses||DEFAULT_COURSES;state.articles=saved?.articles||seedArticles();state.settings=saved?.settings||{};let changed=false;state.articles.forEach(a=>{const cleaned=cleanLegacyAutoNoteText(a.summary||'');if(cleaned!==(a.summary||'')){a.summary=cleaned;changed=true}a.smartNotes=a.smartNotes||[];a.pageTexts=a.pageTexts||[];a.aiSummary=a.aiSummary||null;a.thesis=!!(a.thesis||a.favorite);});if(changed)save();}
+function save(){const articles=state.articles.map(a=>{const {pageTexts,...rest}=a;return rest});localStorage.setItem('audiology-state',JSON.stringify({courses:state.courses,articles,settings:state.settings||{}}))}
+function seedArticles(){return[
+{id:crypto.randomUUID(),title:'cVEMP Responses in Patients with Vestibular Migraine',authors:'Kim, J. H.; Park, S. H.; Lee, H.',year:2023,journal:'Otology & Neurotology',doi:'',courseId:'vestibuler',topic:'VEMP',tags:['vestibüler migren','tez'],summary:'Makalenin Amacı\nVestibüler migren hastalarında cVEMP yanıtlarını incelemek.\n\nMetodoloji\n42 vestibüler migren hastası ve sağlıklı kontrol grubu karşılaştırılmıştır.\n\nÖnemli Sonuçlar\nP13 ve N23 latanslarında farklılıklar raporlanmıştır.\n\nKendi Notlarım\nTezimin VEMP bölümünde kullanılabilir.',favorite:true,reread:false,createdAt:Date.now()-60000,pdfKey:null,summaryPdfKey:null},
+{id:crypto.randomUUID(),title:'Comparison of vHIT and Caloric Testing in Peripheral Vestibular Disorders',authors:'Yılmaz, A.; Demir, E.',year:2022,journal:'Audiology Research',doi:'',courseId:'vestibuler',topic:'vHIT',tags:['kalorik test','vhit'],summary:'vHIT ve kalorik test sonuçlarının her zaman aynı patolojiyi göstermediğini vurguluyor. Testlerin birbirini tamamlayıcı kullanımı açısından önemli.',favorite:false,reread:true,createdAt:Date.now()-30000,pdfKey:null,summaryPdfKey:null}
+]}
+function courseById(id){return state.courses.find(c=>c.id===id)}
+function countArticles(courseId,topic){return state.articles.filter(a=>(!courseId||a.courseId===courseId)&&(!topic||a.topic===topic)).length}
+function esc(s=''){return String(s).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
+function apa(a){const authors=(a.authors||'Yazar bilgisi yok').split(';').map(x=>x.trim()).filter(Boolean).join(', ');let s=`${authors} (${a.year||'t.y.'}). ${a.title}.`;if(a.journal)s+=` ${a.journal}.`;if(a.doi)s+=` https://doi.org/${a.doi.replace(/^https?:\/\/doi.org\//,'')}`;return s}
+function toast(msg){const d=document.createElement('div');d.className='toast';d.textContent=msg;document.body.appendChild(d);setTimeout(()=>d.remove(),2200)}
+function setHeader(title,sub='',back=false){$('#pageTitle').textContent=title;$('#pageSubtitle').textContent=sub;$('#backBtn').classList.toggle('hidden',!back)}
+function navActive(view){document.querySelectorAll('.nav-item[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view))}
+function render(){navActive(state.view);if(state.view==='home')renderHome();else if(state.view==='course')renderCourse();else if(state.view==='topic')renderTopic();else if(state.view==='article')renderArticle();else if(state.view==='compare')renderCompare();else if(state.view==='insights')renderInsights();else renderListView(state.view)}
+function renderHome(){setHeader('Merhaba, iyi çalışmalar! 🌿','Makalelerinizi, notlarınızı, alıntılarınızı ve tez kaynaklarınızı tek yerde yönetin.',false);content.innerHTML=`
+<div class="searchbox"><span>⌕</span><input id="homeSearch" placeholder="Makale, konu veya notlarda ara..."/><button class="mini-btn" id="searchGo">Ara</button></div>
+<div class="section-head"><h2>Dersler / Alanlar</h2><button class="link-btn" id="addCourse">＋ Yeni alan</button></div>
+<div class="course-grid">${state.courses.map(c=>`<article class="course-card" data-course="${c.id}"><div class="course-icon">▣</div><strong>${esc(c.name)}</strong><small>${c.topics.length} alt konu · ${countArticles(c.id)} makale</small></article>`).join('')}</div>
+<div class="section-head"><h2>Kısayollar</h2></div><div class="shortcut-grid">
+<div class="stat-card" data-view="favorites"><span>⭐ Tezimde Kullanacağım</span><div class="num">${state.articles.filter(a=>a.favorite).length}</div></div>
+<div class="stat-card" data-view="reread"><span>↻ Tekrar Okunacaklar</span><div class="num">${state.articles.filter(a=>a.reread).length}</div></div>
+<div class="stat-card" data-view="missing"><span>▧ Özeti Eksik Olanlar</span><div class="num">${state.articles.filter(a=>!a.summary?.trim()).length}</div></div>
+<div class="stat-card" data-view="recent"><span>◷ Son Eklenenler</span><div class="num">${Math.min(10,state.articles.length)}</div></div></div>`;
+$('#searchGo').onclick=()=>{state.search=$('#homeSearch').value;state.view='search';render()};$('#homeSearch').onkeydown=e=>{if(e.key==='Enter')$('#searchGo').click()};document.querySelectorAll('[data-course]').forEach(el=>el.onclick=()=>{state.courseId=el.dataset.course;state.view='course';render()});document.querySelectorAll('.stat-card[data-view]').forEach(el=>el.onclick=()=>{state.view=el.dataset.view;render()});$('#addCourse').onclick=()=>$('#courseDialog').showModal()}
+function renderCourse(){const c=courseById(state.courseId);setHeader(c.name,`${countArticles(c.id)} makale · ${c.topics.length} alt başlık`,true);content.innerHTML=`<div class="searchbox"><span>⌕</span><input id="courseSearch" placeholder="Bu alanda ara..."/></div><div class="section-head"><h2>Alt başlıklar</h2><button class="link-btn" id="apaCourse">APA kaynakça</button></div><div class="topic-list">${c.topics.map(t=>`<div class="topic-row" data-topic="${esc(t)}"><div class="topic-icon">▰</div><div class="grow"><strong>${esc(t)}</strong></div><small>${countArticles(c.id,t)} makale ›</small></div>`).join('')}</div><div id="courseResults"></div>`;document.querySelectorAll('[data-topic]').forEach(el=>el.onclick=()=>{state.topic=el.dataset.topic;state.view='topic';render()});$('#courseSearch').oninput=e=>renderInlineResults(e.target.value,c.id);$('#apaCourse').onclick=()=>showApa(state.articles.filter(a=>a.courseId===c.id),c.name)}
+function renderTopic(){const c=courseById(state.courseId);setHeader(state.topic,`${c.name} · ${countArticles(c.id,state.topic)} makale`,true);const list=state.articles.filter(a=>a.courseId===c.id&&a.topic===state.topic);content.innerHTML=`<div class="toolbar"><button class="mini-btn" id="apaTopic">APA 7 kaynakça</button></div>${articleList(list)}`;wireArticleList();$('#apaTopic').onclick=()=>showApa(list,`${c.name} / ${state.topic}`)}
+function articleList(list){if(!list.length)return`<div class="empty">Henüz makale yok. “Makale Ekle” ile başlayabilirsiniz.</div>`;return`<div class="article-list">${list.map(a=>`<article class="article-card"><div class="doc-icon">▤</div><div><h3>${esc(a.title)}</h3><p>${esc(a.authors||'Yazar yok')} · ${a.year||''}${a.journal?' · '+esc(a.journal):''}</p><div class="chips"><span class="chip">${esc(courseById(a.courseId)?.name||'')}</span><span class="chip">${esc(a.topic||'')}</span>${(a.tags||[]).slice(0,2).map(t=>`<span class="chip">#${esc(t)}</span>`).join('')}</div></div><div class="article-actions"><button class="mini-btn ${a.favorite?'starred':''}" data-star="${a.id}">${a.favorite?'★':'☆'}</button><button class="mini-btn" data-open="${a.id}">Aç</button></div></article>`).join('')}</div>`}
+function wireArticleList(){document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{state.currentArticleId=b.dataset.open;state.view='article';state.articleTab='summary';render()});document.querySelectorAll('[data-star]').forEach(b=>b.onclick=()=>{const a=state.articles.find(x=>x.id===b.dataset.star);a.favorite=!a.favorite;save();render()})}
+function renderListView(view){let title='Arama',list=state.articles;if(view==='favorites'||view==='thesis'){title='Tez Havuzu';list=list.filter(a=>a.favorite||a.thesis)}if(view==='reread'){title='Tekrar Okunacaklar';list=list.filter(a=>a.reread)}if(view==='missing'){title='Özeti Eksik Olanlar';list=list.filter(a=>!a.summary?.trim())}if(view==='recent'){title='Son Eklenenler';list=[...list].sort((a,b)=>b.createdAt-a.createdAt).slice(0,10)}setHeader(title,`${list.length} makale`,false);let q=state.search||'';if(view==='search'&&q)list=searchArticles(q);content.innerHTML=`<div class="searchbox"><span>⌕</span><input id="globalSearch" value="${esc(q)}" placeholder="Başlık, yazar, konu, etiket veya kendi notlarında ara..."/><button class="mini-btn" id="globalGo">Ara</button></div><div class="section-head"><h2>${view==='search'&&q?`“${esc(q)}” için sonuçlar`:title}</h2><div class="toolbar-inline"><button class="link-btn" id="apaList">APA kaynakça</button><button class="link-btn" id="exportCsv">Excel</button><button class="link-btn" id="exportDoc">Word</button></div></div><div id="results">${articleList(list)}</div>`;wireArticleList();$('#globalGo').onclick=()=>{state.search=$('#globalSearch').value.trim();state.view='search';render()};$('#globalSearch').onkeydown=e=>{if(e.key==='Enter')$('#globalGo').click()};$('#apaList').onclick=()=>showApa(list,title);$('#exportCsv').onclick=()=>exportArticlesCsv(list,title);$('#exportDoc').onclick=()=>exportArticlesDoc(list,title)}
+function normalizeWords(s=''){return String(s).toLocaleLowerCase('tr-TR').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9çğıöşü]+/gi,' ').split(/\s+/).filter(w=>w.length>2)}
+function searchScore(a,q){const qs=normalizeWords(q);if(!qs.length)return 0;const title=normalizeWords(a.title).join(' '),meta=normalizeWords([a.authors,a.journal,a.topic,courseById(a.courseId)?.name,(a.tags||[]).join(' ')].join(' ')).join(' '),body=normalizeWords([a.summary,(a.smartNotes||[]).map(n=>n.text).join(' '),articlePages(a).join(' ')].join(' ')).join(' ');let s=0;for(const w of qs){if(title.includes(w))s+=8;if(meta.includes(w))s+=4;if(body.includes(w))s+=2}const phrase=String(q).toLocaleLowerCase('tr-TR');if((a.title||'').toLocaleLowerCase('tr-TR').includes(phrase))s+=15;return s}
+function searchArticles(q){return state.articles.map(a=>({a,s:searchScore(a,q)})).filter(x=>x.s>0).sort((x,y)=>y.s-x.s).map(x=>x.a)}
+function renderInlineResults(q,courseId){const box=$('#courseResults');if(!q.trim()){box.innerHTML='';return}const list=searchArticles(q).filter(a=>a.courseId===courseId);box.innerHTML=`<div class="section-head"><h2>Arama sonuçları</h2></div>${articleList(list)}`;wireArticleList()}
+function capturePdfReadingPosition(a){
+ const container=$('#pdfRenderScroll')||$('#splitPdfRenderScroll');
+ if(!container)return;
+ const shells=[...container.querySelectorAll('.pdf-page-shell')];
+ if(!shells.length)return;
+ const top=container.scrollTop;
+ let current=shells[0];
+ for(const sh of shells){if(sh.offsetTop<=top+24)current=sh;else break}
+ const h=Math.max(1,current.offsetHeight);
+ const ratio=Math.max(0,Math.min(1,(top-current.offsetTop)/h));
+ a.pdfReadingPosition={page:Number(current.dataset.page)||1,ratio,scrollTop:top};
+ save();
+}
+function restorePdfReadingPosition(container,a){
+ const pos=a.pdfReadingPosition;if(!pos)return;
+ const shell=container.querySelector(`.pdf-page-shell[data-page="${pos.page||1}"]`);
+ requestAnimationFrame(()=>{
+  if(shell)container.scrollTop=shell.offsetTop+(Math.max(0,Math.min(1,pos.ratio||0))*shell.offsetHeight);
+  else if(Number.isFinite(pos.scrollTop))container.scrollTop=pos.scrollTop;
+ });
+}
+function watchPdfReadingPosition(container,a){
+ let t=null;
+ container.addEventListener('scroll',()=>{clearTimeout(t);t=setTimeout(()=>capturePdfReadingPosition(a),180)},{passive:true});
+}
+
+async function renderArticle(){
+ const a=state.articles.find(x=>x.id===state.currentArticleId);setHeader('Makale',courseById(a.courseId)?.name+' · '+(a.topic||''),true);
+ let pdfUrl=null,summaryPdfUrl=null;if(a.pdfKey){const blob=await getFile(a.pdfKey);if(blob)pdfUrl=URL.createObjectURL(blob)}if(a.summaryPdfKey){const blob=await getFile(a.summaryPdfKey);if(blob)summaryPdfUrl=URL.createObjectURL(blob)}
+ content.innerHTML=`<div class="article-view"><div class="article-header"><div class="grow"><h2>${esc(a.title)}</h2><p>${esc(a.authors||'')} · ${a.year||''} ${a.journal?'· '+esc(a.journal):''}</p></div><button class="mini-btn" id="favBtn">${a.favorite?'★ Tez':'☆ Teze Ekle'}</button><button class="mini-btn" id="editMeta">Düzenle</button><button class="mini-btn danger" id="deleteArticle">Sil</button></div><div class="tabs"><button class="tab ${state.articleTab==='summary'?'active':''}" data-tab="summary">ÖZETİM</button><button class="tab ${state.articleTab==='handwriting'?'active':''}" data-tab="handwriting">✎ EL YAZISI</button><button class="tab ${state.articleTab==='pdf'?'active':''}" data-tab="pdf">MAKALE</button><button class="tab ${state.articleTab==='split'?'active':''}" data-tab="split">BİRLİKTE</button><button class="tab ${state.articleTab==='assistant'?'active':''}" data-tab="assistant">✦ ASİSTAN</button></div><div id="tabContent" class="tab-panel"></div></div><div class="apa-card"><div class="section-head" style="margin:0 0 10px"><h2>APA 7</h2><button class="mini-btn" id="copyApa">Kopyala</button></div><div>${esc(apa(a))}</div></div>`;
+ document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{capturePdfReadingPosition(a);state.articleTab=b.dataset.tab;renderArticle()});$('#favBtn').onclick=()=>{a.favorite=!a.favorite;a.thesis=a.favorite;save();renderArticle()};$('#deleteArticle').onclick=async()=>{if(confirm('Bu makale silinsin mi?')){if(a.pdfKey)await deleteFile(a.pdfKey);if(a.summaryPdfKey)await deleteFile(a.summaryPdfKey);await deleteIndex(a.id);delete state.indexCache[a.id];state.articles=state.articles.filter(x=>x.id!==a.id);save();state.view='home';render()}};$('#copyApa').onclick=()=>navigator.clipboard.writeText(apa(a)).then(()=>toast('APA kaynakça kopyalandı'));$('#editMeta').onclick=()=>openArticleDialog(a);
+ const tab=$('#tabContent');
+ if(state.articleTab==='summary'){
+  tab.innerHTML=`<div class="summary-workspace"><div class="summary-pdf-card"><div class="panel-title"><h3>Özet PDF</h3><span>${summaryPdfUrl?'GoodNotes / özet dosyası':'Henüz eklenmedi'}</span></div>${summaryPdfUrl?`<iframe src="${summaryPdfUrl}"></iframe>`:`<div class="no-pdf compact">Düzenle’ye basarak özet PDF’si ekleyebilirsiniz.</div>`}</div><div class="summary-panel"><div class="note-editor"><h3>Kendi Özetim / Notlarım</h3><textarea id="summaryEdit">${esc(a.summary||'')}</textarea><div style="margin-top:10px"><button class="primary-btn" id="saveSummary">Notu Kaydet</button> <button class="mini-btn" id="goHandwriting">✎ Apple Pencil ile Yaz</button></div></div>${metaHtml(a)}</div></div>`;
+  $('#saveSummary').onclick=()=>{a.summary=$('#summaryEdit').value;save();toast('Not kaydedildi')};$('#goHandwriting').onclick=()=>{capturePdfReadingPosition(a);state.articleTab='handwriting';renderArticle()}
+ } else if(state.articleTab==='handwriting'){
+  tab.innerHTML=`<div class="ink-workspace"><div class="ink-toolbar"><div class="tool-group"><button class="ink-tool active" data-tool="pen">✎ Kalem</button><button class="ink-tool" data-tool="marker">▰ Fosforlu</button><button class="ink-tool" data-tool="eraser">⌫ Silgi</button></div><div class="tool-group"><label>Kalınlık <input id="inkSize" type="range" min="1" max="16" value="3"></label><input id="inkColor" class="ink-color" type="color" value="#35245f" title="Kalem rengi"></div><div class="tool-group"><button class="mini-btn" id="inkUndo">↶ Geri</button><button class="mini-btn" id="inkRedo">↷ İleri</button><button class="mini-btn danger" id="inkClear">Temizle</button></div><label class="pencil-only"><input id="pencilOnly" type="checkbox" checked> Parmakla çizimi kapat (Mouse + Apple Pencil açık)</label></div><div class="ink-paper-wrap"><canvas id="inkCanvas" class="ink-canvas" aria-label="Apple Pencil not alanı"></canvas><div class="ink-hint">Apple Pencil veya mouse ile bu alana doğrudan yazabilirsiniz. Çizimler otomatik kaydedilir.</div></div></div>`;
+  initInkCanvas($('#inkCanvas'),a)
+ } else if(state.articleTab==='pdf'){
+  tab.innerHTML=pdfUrl?`<div class="pdf-smart-layout"><div class="pdf-annotate-workspace"><div class="pdf-ink-toolbar"><div class="tool-group"><button class="pdf-mode active" data-mode="navigate">☝ Gezin</button><button class="pdf-mode" data-mode="draw">✎ PDF Üzerine Yaz</button></div><div class="tool-group pdf-draw-tools"><button class="pdf-ink-tool active" data-tool="pen">✎ Kalem</button><button class="pdf-ink-tool" data-tool="marker">▰ Fosforlu</button><button class="pdf-ink-tool" data-tool="eraser">⌫ Silgi</button><label>Kalınlık <input id="pdfInkSize" type="range" min="1" max="18" value="3"></label><input id="pdfInkColor" class="ink-color" type="color" value="#7c3aed"></div><div class="tool-group"><button class="mini-btn" id="pdfInkUndo">↶</button><button class="mini-btn" id="pdfInkRedo">↷</button><button class="mini-btn danger" id="pdfInkClear">Temizle</button></div><label class="pencil-only"><input id="pdfPencilOnly" type="checkbox" checked> Parmakla çizimi kapat (Mouse + Apple Pencil açık)</label></div><div class="pdf-panel pdf-annotatable"><div id="pdfRenderScroll" class="pdf-render-scroll" aria-label="PDF okuyucu"></div><div class="pdf-ink-hint" id="pdfInkHint">Gezin modunda PDF'yi kaydırın. “PDF Üzerine Yaz” ile Apple Pencil veya mouse anotasyonunu açın.</div></div></div><aside class="smart-note-panel"><div><h3>Akıllı Notlar</h3><p><strong>Gezin</strong> modunda PDF metnini seçin; çıkan “Notlarıma Ekle” düğmesiyle seçimi doğrudan Özetim’e gönderin. Kopyalama yöntemi de kullanılabilir.</p></div><button class="primary-btn full-btn" id="addPdfSelection">＋ Seçili Metni Notlarıma Ekle</button><small>Gezin modunda cümleyi mouse veya parmakla seçin. Seçim varsa tek dokunuşla aktarılır.</small><button class="mini-btn full-btn" id="captureClipboard">📋 Panodaki Metni Notlarıma Ekle</button><div class="smart-divider"></div><label><strong>Kenar Notu</strong><span>iPad Scribble açıksa Apple Pencil ile kutuya yazdığınız el yazısı otomatik metne çevrilir.</span><textarea id="marginNote" rows="7" placeholder="Apple Pencil ile buraya yazın…"></textarea></label><div class="smart-status" id="marginStatus">Yazdıklarınız 1 saniye sonra otomatik kaydedilir.</div><button class="mini-btn full-btn" id="saveInkSnapshot">✎ Mevcut El Yazısını Notlara İliştir</button><div id="smartNoteHistory" class="smart-note-history"></div></aside></div>`:`<div class="pdf-panel no-pdf">Bu makaleye henüz PDF eklenmemiş.</div>`;
+  if(pdfUrl){initPdfInkCanvas($('#pdfRenderScroll'),a,pdfUrl).then(()=>initSmartNotes(a,$('#pdfRenderScroll .pdf-page-ink-canvas')))}
+ } else if(state.articleTab==='split'){
+  tab.innerHTML=`<div class="split-panel"><div class="split-document"><div class="panel-title"><h3>Orijinal Makale</h3></div>${pdfUrl?`<div id="splitPdfRenderScroll" class="pdf-render-scroll split-pdf-scroll" aria-label="PDF okuyucu"></div>`:`<div class="no-pdf">Makale PDF’si eklenmemiş.</div>`}</div><div class="split-summary"><div class="panel-title"><h3>Özet PDF + Notlar</h3><button class="mini-btn" id="splitHandwriting">✎ El Yazısı</button></div>${summaryPdfUrl?`<iframe src="${summaryPdfUrl}"></iframe>`:`<div class="no-pdf compact">Özet PDF’si eklenmemiş.</div>`}<div class="note-editor split-notes"><textarea id="summarySplit">${esc(a.summary||'')}</textarea><button class="primary-btn" id="saveSplit">Notu Kaydet</button></div></div></div>`;$('#saveSplit').onclick=()=>{a.summary=$('#summarySplit').value;save();toast('Not kaydedildi')};$('#splitHandwriting').onclick=()=>{capturePdfReadingPosition(a);state.articleTab='handwriting';renderArticle()};if(pdfUrl)initPdfReadOnly($('#splitPdfRenderScroll'),a,pdfUrl)
+ } else if(state.articleTab==='assistant'){renderArticleAssistant(tab,a)}
+}
+
+
+function addStructuredNote(a,kind,text,meta={}){
+ const clean=(text||'').replace(/\s+/g,' ').trim();if(!clean)return false;
+ a.smartNotes=a.smartNotes||[];
+ const duplicate=a.smartNotes.some(n=>n.text===clean&&Math.abs((n.createdAt||0)-Date.now())<5000);if(duplicate)return false;
+ const item={id:crypto.randomUUID(),kind,text:clean,createdAt:Date.now(),page:meta.page||null,pageRatio:meta.pageRatio??null};
+ a.smartNotes.unshift(item);
+ a.summary=(a.summary||'').trimEnd()+`${a.summary?.trim()?'\n\n':''}${clean}`;
+ save();return true
+}
+function renderSmartHistory(a){
+ const box=$('#smartNoteHistory');if(!box)return;
+ const items=(a.smartNotes||[]).slice(0,10);
+ box.innerHTML=items.length?`<h4>Son aktarılanlar</h4>${items.map(n=>`<button class="smart-note-item smart-note-jump" data-note-id="${n.id}"><span>${esc(n.text)}</span>${n.page?`<small>Sayfa ${n.page} · Kaynağa git</small>`:''}</button>`).join('')}`:`<div class="smart-empty">Henüz otomatik aktarılan not yok.</div>`;
+ box.querySelectorAll('[data-note-id]').forEach(b=>b.onclick=()=>{const n=(a.smartNotes||[]).find(x=>x.id===b.dataset.noteId);if(n?.page){a.pdfReading={page:n.page,ratio:n.pageRatio||0};save();state.articleTab='pdf';renderArticle()}})
+}
+function initSmartNotes(a,canvas){
+ renderSmartHistory(a);let timer=null,lastAuto='';
+ const selectedPdfInfo=()=>{const sel=window.getSelection?.();if(!sel||sel.isCollapsed)return null;const text=sel.toString().replace(/\s+/g,' ').trim();if(!text)return null;const node=sel.anchorNode;const el=node?.nodeType===1?node:node?.parentElement;const layer=el?.closest?.('.pdf-text-layer');if(!layer)return null;const shell=layer.closest('.pdf-page-shell');const page=Number(layer.dataset.page||shell?.dataset.page)||null;let pageRatio=0;try{const range=sel.getRangeAt(0),rr=range.getBoundingClientRect(),sr=shell.getBoundingClientRect();pageRatio=Math.max(0,Math.min(1,(rr.top-sr.top)/Math.max(1,sr.height)))}catch{}return{text,page,pageRatio}};
+ const selectedPdfText=()=>selectedPdfInfo()?.text||'';
+ const addSelection=()=>{const info=selectedPdfInfo();if(!info){toast('Önce Gezin modunda PDF’den bir cümle veya bölüm seçin');return}if(addStructuredNote(a,'quote',info.text,info)){renderSmartHistory(a);window.getSelection?.().removeAllRanges();toast(`Seçili metin Notlarım’a eklendi${info.page?' · Sayfa '+info.page:''}`)}};
+ const selectBtn=$('#addPdfSelection');if(selectBtn)selectBtn.onclick=addSelection;
+ // Mouse/touch ile metin seçimi bittiğinde seçim varsa butonu hazır hale getir.
+ const refreshSelectionButton=()=>{const b=$('#addPdfSelection');if(!b)return;const t=selectedPdfText();b.classList.toggle('selection-ready',!!t);b.textContent=t?'＋ Seçimi Notlarıma Ekle':'＋ Seçili Metni Notlarıma Ekle'};
+ document.addEventListener('selectionchange',refreshSelectionButton);
+ $('#captureClipboard').onclick=async()=>{
+  try{const text=(await navigator.clipboard.readText()).trim();if(!text){toast('Panoda metin yok');return}if(addStructuredNote(a,'quote',text)){renderSmartHistory(a);toast('Cümle Notlarım’a eklendi')}}
+  catch{toast('Pano izni gerekli. PDF’de cümleyi kopyaladıktan sonra tekrar deneyin.')}
+ };
+ const margin=$('#marginNote'),status=$('#marginStatus');
+ margin.oninput=()=>{status.textContent='Yazılıyor…';clearTimeout(timer);timer=setTimeout(()=>{const text=margin.value.trim();if(!text||text===lastAuto){status.textContent='Kaydedilecek yeni not yok.';return}if(addStructuredNote(a,'margin',text)){lastAuto=text;margin.value='';status.textContent='✓ Kenar notu Özetim’e aktarıldı.';renderSmartHistory(a);toast('Kenar notu otomatik aktarıldı')}},1000)};
+ $('#saveInkSnapshot').onclick=async()=>{
+  if(!canvas||!(a.pdfInkStrokes||[]).length){toast('Önce PDF üzerine bir el yazısı/işaret ekleyin');return}
+  try{const blob=await new Promise(res=>canvas.toBlob(res,'image/png',.85));const key=crypto.randomUUID();await putFile(key,blob);a.inkNoteRefs=a.inkNoteRefs||[];a.inkNoteRefs.unshift({key,createdAt:Date.now()});save();toast('El yazısı anotasyonu makaleye kaydedildi')}
+  catch{toast('El yazısı notu kaydedilemedi')}
+ }
+}
+
+
+function initPdfInkCanvas(container,a,pdfUrl){
+ return (async()=>{
+  if(typeof pdfjsLib==='undefined')throw new Error('PDF okuyucu yüklenemedi.');
+  pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const pdf=await pdfjsLib.getDocument(pdfUrl).promise;
+  let tool='pen',mode='navigate',drawing=false,current=null,redo=[];
+  a.pdfInkStrokes=(a.pdfInkStrokes||[]).filter(st=>Number.isInteger(st.page));
+  const pages=new Map();
+
+  async function renderPage(pageNo){
+   const page=await pdf.getPage(pageNo);
+   const base=page.getViewport({scale:1});
+   const available=Math.max(320,container.clientWidth-30);
+   const scale=Math.min(2,Math.max(.5,available/base.width));
+   const viewport=page.getViewport({scale});
+   const shell=document.createElement('div');shell.className='pdf-page-shell';shell.dataset.page=pageNo;
+   const pdfCanvas=document.createElement('canvas');pdfCanvas.className='pdf-page-canvas';
+   const textLayer=document.createElement('div');textLayer.className='pdf-text-layer';textLayer.dataset.page=pageNo;
+   const ink=document.createElement('canvas');ink.className='pdf-page-ink-canvas navigate';ink.dataset.page=pageNo;ink.setAttribute('aria-label',`PDF sayfa ${pageNo} anotasyon katmanı`);
+   const badge=document.createElement('div');badge.className='pdf-page-number';badge.textContent=`${pageNo} / ${pdf.numPages}`;
+   shell.append(pdfCanvas,textLayer,ink,badge);container.appendChild(shell);
+   const dpr=Math.max(1,window.devicePixelRatio||1);
+   pdfCanvas.width=Math.round(viewport.width*dpr);pdfCanvas.height=Math.round(viewport.height*dpr);pdfCanvas.style.width=viewport.width+'px';pdfCanvas.style.height=viewport.height+'px';
+   const pctx=pdfCanvas.getContext('2d');
+   await page.render({canvasContext:pctx,viewport,transform:dpr!==1?[dpr,0,0,dpr,0,0]:null}).promise;
+   // Gezin modunda gerçek PDF metnini seçilebilir bir katman olarak yerleştir.
+   try{
+    const textContent=await page.getTextContent();
+    state.indexCache[a.id]=state.indexCache[a.id]||[];state.indexCache[a.id][pageNo-1]=textContent.items.map(i=>i.str||'').join(' ').replace(/\s+/g,' ').trim();
+    textLayer.style.width=viewport.width+'px';textLayer.style.height=viewport.height+'px';
+    for(const item of textContent.items){
+     if(!item.str)continue;
+     const tx=pdfjsLib.Util.transform(viewport.transform,item.transform);
+     const span=document.createElement('span');span.textContent=item.str;
+     span.style.left=tx[4]+'px';span.style.top=(tx[5]-Math.hypot(tx[2],tx[3]))+'px';
+     span.style.fontSize=Math.max(1,Math.hypot(tx[2],tx[3]))+'px';
+     span.style.fontFamily='sans-serif';
+     const angle=Math.atan2(tx[1],tx[0]);
+     if(angle)span.style.transform=`rotate(${angle}rad)`;
+     textLayer.appendChild(span);
+    }
+   }catch(e){console.warn('PDF metin katmanı oluşturulamadı',e)}
+   ink.width=Math.round(viewport.width*dpr);ink.height=Math.round(viewport.height*dpr);ink.style.width=viewport.width+'px';ink.style.height=viewport.height+'px';
+   const ictx=ink.getContext('2d');ictx.setTransform(dpr,0,0,dpr,0,0);
+   pages.set(pageNo,{shell,ink,ctx:ictx,w:viewport.width,h:viewport.height});
+   bindInk(ink,pageNo);redrawPage(pageNo);
+  }
+
+  function drawStroke(st){
+   const pg=pages.get(st.page);if(!pg||!st.points?.length)return;
+   const {ctx,w,h}=pg;ctx.save();ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle=st.color;ctx.lineWidth=st.size;ctx.globalAlpha=st.tool==='marker'?.24:1;ctx.globalCompositeOperation=st.tool==='eraser'?'destination-out':'source-over';ctx.beginPath();const p=st.points[0];ctx.moveTo(p.x*w,p.y*h);for(const q of st.points.slice(1))ctx.lineTo(q.x*w,q.y*h);ctx.stroke();ctx.restore();
+  }
+  function redrawPage(pageNo){const pg=pages.get(pageNo);if(!pg)return;pg.ctx.clearRect(0,0,pg.w,pg.h);for(const st of a.pdfInkStrokes.filter(x=>x.page===pageNo))drawStroke(st)}
+  function redrawAll(){for(const n of pages.keys())redrawPage(n)}
+  function point(e,canvas){const r=canvas.getBoundingClientRect();return{x:(e.clientX-r.left)/r.width,y:(e.clientY-r.top)/r.height,p:e.pressure||.5}}
+  function allowed(e){const blockTouch=$('#pdfPencilOnly')?.checked;return e.pointerType!=='touch'||!blockTouch}
+  function bindInk(canvas,pageNo){
+   canvas.onpointerdown=e=>{if(mode!=='draw'||!allowed(e))return;e.preventDefault();drawing=true;canvas.setPointerCapture?.(e.pointerId);current={page:pageNo,tool,color:$('#pdfInkColor').value,size:Number($('#pdfInkSize').value),points:[point(e,canvas)]};if(tool==='marker')current.size=Math.max(12,current.size*2.2);if(tool==='eraser')current.size=Math.max(20,current.size*2.2);a.pdfInkStrokes.push(current);redo=[];redrawPage(pageNo)};
+   canvas.onpointermove=e=>{if(!drawing||!current||current.page!==pageNo)return;e.preventDefault();current.points.push(point(e,canvas));redrawPage(pageNo)};
+   const finish=()=>{if(!drawing)return;drawing=false;current=null;save()};canvas.onpointerup=finish;canvas.onpointercancel=finish;
+  }
+  function setMode(m){mode=m;container.classList.toggle('draw-mode',m==='draw');container.querySelectorAll('.pdf-page-ink-canvas').forEach(c=>c.classList.toggle('navigate',m==='navigate'));container.querySelectorAll('.pdf-text-layer').forEach(t=>t.classList.toggle('disabled',m==='draw'));document.querySelectorAll('.pdf-mode').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));$('#pdfInkHint').textContent=m==='draw'?'Apple Pencil veya mouse ile doğrudan PDF sayfasının üzerine yazabilirsiniz. Fosfor ve notlar sayfayla birlikte hareket eder.':'Gezin modunda PDF metnini seçebilirsiniz. Seçtiğiniz cümleyi Akıllı Notlar’dan tek dokunuşla Notlarım’a aktarın.'}
+
+  container.innerHTML='<div class="pdf-loading">PDF sayfaları hazırlanıyor…</div>';
+  const loading=container.firstElementChild;
+  for(let p=1;p<=pdf.numPages;p++)await renderPage(p);
+  loading?.remove();await putIndex(a.id,state.indexCache[a.id]||[]);save();
+  restorePdfReadingPosition(container,a);watchPdfReadingPosition(container,a);
+  document.querySelectorAll('.pdf-mode').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+  document.querySelectorAll('.pdf-ink-tool').forEach(b=>b.onclick=()=>{tool=b.dataset.tool;document.querySelectorAll('.pdf-ink-tool').forEach(x=>x.classList.toggle('active',x===b))});
+  $('#pdfInkUndo').onclick=()=>{if(a.pdfInkStrokes.length){redo.push(a.pdfInkStrokes.pop());save();redrawAll()}};
+  $('#pdfInkRedo').onclick=()=>{if(redo.length){a.pdfInkStrokes.push(redo.pop());save();redrawAll()}};
+  $('#pdfInkClear').onclick=()=>{if(confirm('Bu PDF üzerindeki tüm anotasyonlar temizlensin mi?')){a.pdfInkStrokes=[];redo=[];save();redrawAll()}};
+  setMode('navigate');
+ })().catch(err=>{console.error(err);container.innerHTML='<div class="no-pdf">PDF görüntülenirken hata oluştu.</div>';toast('PDF görüntülenemedi')})
+}
+
+function initPdfReadOnly(container,a,pdfUrl){
+ return (async()=>{
+  if(!container||typeof pdfjsLib==='undefined')return;
+  pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const pdf=await pdfjsLib.getDocument(pdfUrl).promise;
+  container.innerHTML='<div class="pdf-loading">PDF sayfaları hazırlanıyor…</div>';
+  const loading=container.firstElementChild;
+  for(let p=1;p<=pdf.numPages;p++){
+   const page=await pdf.getPage(p);const base=page.getViewport({scale:1});
+   const available=Math.max(320,container.clientWidth-30);const scale=Math.min(2,Math.max(.5,available/base.width));const viewport=page.getViewport({scale});
+   const shell=document.createElement('div');shell.className='pdf-page-shell';shell.dataset.page=p;
+   const canvas=document.createElement('canvas');canvas.className='pdf-page-canvas';const badge=document.createElement('div');badge.className='pdf-page-number';badge.textContent=`${p} / ${pdf.numPages}`;shell.append(canvas,badge);container.appendChild(shell);
+   const dpr=Math.max(1,window.devicePixelRatio||1);canvas.width=Math.round(viewport.width*dpr);canvas.height=Math.round(viewport.height*dpr);canvas.style.width=viewport.width+'px';canvas.style.height=viewport.height+'px';
+   await page.render({canvasContext:canvas.getContext('2d'),viewport,transform:dpr!==1?[dpr,0,0,dpr,0,0]:null}).promise;
+  }
+  loading?.remove();restorePdfReadingPosition(container,a);watchPdfReadingPosition(container,a);
+ })().catch(err=>{console.error(err);container.innerHTML='<div class="no-pdf">PDF görüntülenirken hata oluştu.</div>'})
+}
+
+function initInkCanvas(canvas,a){
+ const ctx=canvas.getContext('2d');let tool='pen',drawing=false,current=null,redo=[];a.inkStrokes=a.inkStrokes||[];
+ function sizeCanvas(){const rect=canvas.getBoundingClientRect(),dpr=Math.max(1,window.devicePixelRatio||1);canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);redraw()}
+ function drawStroke(st){if(!st||st.points.length<1)return;ctx.save();ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle=st.color;ctx.lineWidth=st.size;ctx.globalAlpha=st.tool==='marker'?.22:1;ctx.globalCompositeOperation=st.tool==='eraser'?'destination-out':'source-over';ctx.beginPath();const p0=st.points[0];ctx.moveTo(p0.x*canvas.clientWidth,p0.y*canvas.clientHeight);for(const p of st.points.slice(1))ctx.lineTo(p.x*canvas.clientWidth,p.y*canvas.clientHeight);ctx.stroke();ctx.restore()}
+ function redraw(){ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight);for(const st of a.inkStrokes)drawStroke(st)}
+ function pointerPoint(e){const r=canvas.getBoundingClientRect();return{x:(e.clientX-r.left)/r.width,y:(e.clientY-r.top)/r.height,p:e.pressure||.5}}
+ function allowed(e){const blockTouch=$('#pencilOnly')?.checked;return e.pointerType!=='touch'||!blockTouch}
+ canvas.onpointerdown=e=>{if(!allowed(e))return;e.preventDefault();drawing=true;canvas.setPointerCapture?.(e.pointerId);current={tool,color:$('#inkColor').value,size:Number($('#inkSize').value),points:[pointerPoint(e)]};if(tool==='marker')current.size=Math.max(10,current.size*2);if(tool==='eraser')current.size=Math.max(18,current.size*2);a.inkStrokes.push(current);redo=[];drawStroke(current)};
+ canvas.onpointermove=e=>{if(!drawing||!current)return;e.preventDefault();current.points.push(pointerPoint(e));redraw()};
+ const finish=e=>{if(!drawing)return;drawing=false;current=null;save();};canvas.onpointerup=finish;canvas.onpointercancel=finish;canvas.onpointerleave=e=>{if(drawing&&e.buttons===0)finish(e)};
+ document.querySelectorAll('.ink-tool').forEach(b=>b.onclick=()=>{tool=b.dataset.tool;document.querySelectorAll('.ink-tool').forEach(x=>x.classList.toggle('active',x===b))});
+ $('#inkUndo').onclick=()=>{if(a.inkStrokes.length){redo.push(a.inkStrokes.pop());save();redraw()}};$('#inkRedo').onclick=()=>{if(redo.length){a.inkStrokes.push(redo.pop());save();redraw()}};$('#inkClear').onclick=()=>{if(confirm('Bu makaledeki el yazısı notları temizlensin mi?')){a.inkStrokes=[];redo=[];save();redraw()}};
+ window.requestAnimationFrame(sizeCanvas);const ro=new ResizeObserver(sizeCanvas);ro.observe(canvas);canvas._inkResizeObserver=ro;
+}
+
+
+function sentenceList(text=''){return String(text).replace(/\s+/g,' ').split(/(?<=[.!?])\s+(?=[A-ZÇĞİÖŞÜ0-9])/).map(s=>s.trim()).filter(s=>s.length>35)}
+function sectionExtract(text,labelPatterns,nextPatterns=[]){const low=text.toLowerCase();let start=-1;for(const p of labelPatterns){const i=low.indexOf(p);if(i>=0&&(start<0||i<start))start=i}if(start<0)return '';let end=Math.min(text.length,start+4500);for(const p of nextPatterns){const i=low.indexOf(p,start+20);if(i>start&&i<end)end=i}return text.slice(start,end).replace(/^.{0,80}?(abstract|introduction|methods?|materials and methods|results?|discussion|conclusion|sonuçlar?|yöntem)[:\s-]*/i,'').trim()}
+function localAcademicSummary(a){const text=articlePages(a).join(' ');if(!text)return null;const abs=sectionExtract(text,['abstract','özet'],['introduction','giriş']);const methods=sectionExtract(text,['methods','method','materials and methods','yöntem'],['results','bulgular']);const results=sectionExtract(text,['results','bulgular'],['discussion','tartışma','conclusion']);const conc=sectionExtract(text,['conclusion','conclusions','sonuç'],['references','kaynaklar']);const pick=x=>sentenceList(x).slice(0,3).join(' ');return {purpose:pick(abs)||sentenceList(text).slice(0,2).join(' '),methods:pick(methods),results:pick(results),conclusion:pick(conc),limitations:sentenceList(text).filter(s=>/limitation|sınırl|constraint/i.test(s)).slice(0,2).join(' '),generatedAt:Date.now(),mode:'yerel'} }
+function answerFromArticle(a,q){const qs=normalizeWords(q);const pages=articlePages(a);let candidates=[];pages.forEach((t,i)=>sentenceList(t).forEach(s=>{let score=0;const low=normalizeWords(s);for(const w of qs)if(low.includes(w))score+=2;if(/sample|participants|patients|subjects|control|n\s*=|hasta|katılımcı/i.test(q)&&/\d+|patient|participant|subject|control|hasta|katılımcı/i.test(s))score+=2;if(score)candidates.push({s,score,page:i+1})}));candidates.sort((x,y)=>y.score-x.score);if(!candidates.length)return {text:'Bu soru için indekslenmiş PDF metninde yeterli eşleşme bulamadım. Makale PDF’sini MAKALE sekmesinde bir kez açarak metni indeksleyin.',refs:[]};const top=candidates.slice(0,4);return {text:top.map(x=>x.s).join(' '),refs:top.map(x=>x.page)}}
+function similarArticles(a){return state.articles.filter(x=>x.id!==a.id).map(x=>({a:x,s:searchScore(x,[a.topic,...(a.tags||[]),...normalizeWords(a.title).slice(0,8)].join(' '))})).filter(x=>x.s>0).sort((x,y)=>y.s-x.s).slice(0,5).map(x=>x.a)}
+function renderArticleAssistant(tab,a){const sm=a.aiSummary||localAcademicSummary(a);if(sm&&!a.aiSummary){a.aiSummary=sm;save()}const sims=similarArticles(a);tab.innerHTML=`<div class="assistant-grid"><section class="assistant-card"><div class="section-head"><h3>✦ Otomatik Akademik Özet</h3><button class="mini-btn" id="regenSummary">Yenile</button></div>${sm?`<dl class="academic-summary"><dt>Amaç</dt><dd>${esc(sm.purpose||'Belirlenemedi')}</dd><dt>Yöntem</dt><dd>${esc(sm.methods||'Belirlenemedi')}</dd><dt>Bulgular</dt><dd>${esc(sm.results||'Belirlenemedi')}</dd><dt>Sonuç</dt><dd>${esc(sm.conclusion||'Belirlenemedi')}</dd><dt>Kısıtlılıklar</dt><dd>${esc(sm.limitations||'Metinde açık bir kısıtlılık cümlesi bulunamadı.')}</dd></dl>`:`<div class="empty compact">Özet oluşturmak için PDF’yi MAKALE sekmesinde bir kez açın.</div>`}<button class="primary-btn" id="appendAiSummary" ${sm?'':'disabled'}>Özetim’e Ekle</button></section><section class="assistant-card"><h3>💬 Makaleye Sor</h3><div class="ask-row"><input id="articleQuestion" placeholder="Örn. Örneklem kaç kişi? VEMP açısından ana sonuç ne?"/><button class="primary-btn" id="askArticle">Sor</button></div><div id="articleAnswer" class="answer-box">Cevaplar bu makalenin indekslenmiş PDF metninden ve sayfa referanslarıyla üretilir.</div></section><section class="assistant-card full"><h3>🔗 Benzer Makaleler</h3>${sims.length?articleList(sims):'<div class="empty compact">Benzer makale bulunamadı.</div>'}</section></div>`;wireArticleList();$('#regenSummary').onclick=()=>{a.aiSummary=localAcademicSummary(a);save();renderArticle()};$('#appendAiSummary').onclick=()=>{const x=a.aiSummary;if(!x)return;a.summary=(a.summary||'').trimEnd()+`${a.summary?.trim()?'\n\n':''}Amaç\n${x.purpose||''}\n\nYöntem\n${x.methods||''}\n\nBulgular\n${x.results||''}\n\nSonuç\n${x.conclusion||''}\n\nKısıtlılıklar\n${x.limitations||''}`;save();toast('Otomatik özet Özetim’e eklendi')};$('#askArticle').onclick=()=>{const q=$('#articleQuestion').value.trim();if(!q)return;const ans=answerFromArticle(a,q);$('#articleAnswer').innerHTML=`<p>${esc(ans.text)}</p>${ans.refs.length?`<small>Kaynak sayfalar: ${[...new Set(ans.refs)].join(', ')}</small>`:''}`};$('#articleQuestion').onkeydown=e=>{if(e.key==='Enter')$('#askArticle').click()}}
+function renderCompare(){setHeader('Makale Karşılaştır','Seçtiğiniz çalışmaları yöntem, örneklem, bulgu ve not açısından yan yana görün.',false);content.innerHTML=`<div class="compare-picker"><div class="section-head"><h2>Makaleleri seçin</h2><button class="primary-btn" id="buildCompare">Karşılaştır</button></div><div class="compare-checks">${state.articles.map(a=>`<label><input type="checkbox" data-compare-id="${a.id}"> <span>${esc(a.title)}</span><small>${esc(a.authors||'')} · ${a.year||''}</small></label>`).join('')}</div></div><div id="compareResult"></div>`;$('#buildCompare').onclick=()=>{const ids=[...document.querySelectorAll('[data-compare-id]:checked')].map(x=>x.dataset.compareId);const list=state.articles.filter(a=>ids.includes(a.id));if(list.length<2){toast('En az 2 makale seçin');return}$('#compareResult').innerHTML=compareTable(list)}}
+function compareTable(list){return `<div class="compare-table-wrap"><table class="compare-table"><thead><tr><th>Alan</th>${list.map(a=>`<th>${esc(a.title)}</th>`).join('')}</tr></thead><tbody><tr><th>Yazar/Yıl</th>${list.map(a=>`<td>${esc(a.authors||'')} (${a.year||''})</td>`).join('')}</tr><tr><th>Konu</th>${list.map(a=>`<td>${esc(courseById(a.courseId)?.name||'')} → ${esc(a.topic||'')}</td>`).join('')}</tr><tr><th>Yöntem</th>${list.map(a=>`<td>${esc((a.aiSummary||localAcademicSummary(a))?.methods||'—')}</td>`).join('')}</tr><tr><th>Bulgular</th>${list.map(a=>`<td>${esc((a.aiSummary||localAcademicSummary(a))?.results||'—')}</td>`).join('')}</tr><tr><th>Sonuç</th>${list.map(a=>`<td>${esc((a.aiSummary||localAcademicSummary(a))?.conclusion||'—')}</td>`).join('')}</tr><tr><th>Kendi notlarım</th>${list.map(a=>`<td>${esc(a.summary||'—')}</td>`).join('')}</tr></tbody></table></div>`}
+function renderInsights(){setHeader('Akademik Asistan','Tüm kütüphanede kavramsal arama ve çalışma keşfi.',false);content.innerHTML=`<div class="assistant-card library-assistant"><h2>🔎 Kütüphaneye Sor</h2><p>Başlık, özet, kendi notlarınız, alıntılar ve PDF metni birlikte taranır.</p><div class="ask-row"><input id="libraryQuestion" placeholder="Örn. Vestibüler migrende VEMP amplitüdü düşük bulunan çalışmalar"/><button class="primary-btn" id="askLibrary">Ara</button></div><div id="libraryAnswer"></div></div>`;$('#askLibrary').onclick=()=>{const q=$('#libraryQuestion').value.trim();if(!q)return;const list=searchArticles(q).slice(0,12);$('#libraryAnswer').innerHTML=`<div class="section-head"><h3>${list.length} ilgili çalışma</h3></div>${articleList(list)}`;wireArticleList()};$('#libraryQuestion').onkeydown=e=>{if(e.key==='Enter')$('#askLibrary').click()}}
+
+async function exportFullBackup(){if(typeof JSZip==='undefined'){toast('ZIP modülü yüklenemedi; internet bağlantısını kontrol edin.');return}const zip=new JSZip();const manifest={version:2,exportedAt:new Date().toISOString(),courses:state.courses,articles:state.articles.map(a=>{const {pageTexts,...x}=a;return x}),settings:state.settings||{}};zip.file('manifest.json',JSON.stringify(manifest,null,2));for(const a of state.articles){if(a.pdfKey){const f=await getFile(a.pdfKey);if(f)zip.file(`files/${a.pdfKey}.pdf`,f)}if(a.summaryPdfKey){const f=await getFile(a.summaryPdfKey);if(f)zip.file(`files/${a.summaryPdfKey}.pdf`,f)}const pages=articlePages(a);if(pages.length)zip.file(`index/${a.id}.json`,JSON.stringify(pages))}const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});downloadBlob(blob,`odyoloji-tam-yedek-${new Date().toISOString().slice(0,10)}.zip`);toast('Tam yedek oluşturuldu')}
+async function importFullBackup(file){if(typeof JSZip==='undefined'){toast('ZIP modülü yüklenemedi.');return}try{const zip=await JSZip.loadAsync(file);const mf=zip.file('manifest.json');if(!mf)throw new Error('manifest yok');const data=JSON.parse(await mf.async('text'));if(!Array.isArray(data.articles)||!Array.isArray(data.courses))throw new Error('geçersiz manifest');state.courses=data.courses;state.articles=data.articles;state.settings=data.settings||{};state.indexCache={};for(const a of state.articles){for(const key of [a.pdfKey,a.summaryPdfKey].filter(Boolean)){const zf=zip.file(`files/${key}.pdf`);if(zf)await putFile(key,await zf.async('blob'))}const ix=zip.file(`index/${a.id}.json`);if(ix){const pages=JSON.parse(await ix.async('text'));state.indexCache[a.id]=pages;await putIndex(a.id,pages)}}save();render();toast('Tam yedek geri yüklendi')}catch(e){console.error(e);toast('Yedek dosyası geri yüklenemedi')}}
+async function hydrateIndexCache(){state.indexCache=state.indexCache||{};let migrated=false;for(const a of state.articles){if(a.pageTexts?.length){state.indexCache[a.id]=a.pageTexts;await putIndex(a.id,a.pageTexts);delete a.pageTexts;migrated=true}else{const pages=await getIndex(a.id);if(pages?.length)state.indexCache[a.id]=pages}}if(migrated)save()}
+
+function downloadBlob(blob,name){const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1000)}
+function csvCell(v){return `"${String(v??'').replace(/"/g,'""')}"`}
+function exportArticlesCsv(list,title='makaleler'){const heads=['Başlık','Yazarlar','Yıl','Dergi','DOI','Ders','Konu','Notlar','APA'];const rows=list.map(a=>[a.title,a.authors,a.year,a.journal,a.doi,courseById(a.courseId)?.name,a.topic,a.summary,apa(a)]);const table=`<table><tr>${heads.map(x=>`<th>${esc(x)}</th>`).join('')}</tr>${rows.map(r=>`<tr>${r.map(x=>`<td>${esc(x??'')}</td>`).join('')}</tr>`).join('')}</table>`;downloadBlob(new Blob([`<html><meta charset=\"utf-8\"><body>${table}</body></html>`],{type:'application/vnd.ms-excel'}),`${title.replace(/\W+/g,'_')}.xls`)}
+function exportArticlesDoc(list,title='Kaynaklar'){const body=list.map(a=>`<h2>${esc(a.title)}</h2><p><b>${esc(a.authors||'')}</b> (${a.year||''})</p><p>${esc(a.summary||'').replace(/\n/g,'<br>')}</p><p><i>${esc(apa(a))}</i></p><hr>`).join('');downloadBlob(new Blob([`<html><meta charset="utf-8"><body><h1>${esc(title)}</h1>${body}</body></html>`],{type:'application/msword'}),`${title.replace(/\W+/g,'_')}.doc`)}
+async function indexPdfFile(file){if(!file||typeof pdfjsLib==='undefined')return [];try{pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise,pages=[];for(let i=1;i<=pdf.numPages;i++){const tc=await (await pdf.getPage(i)).getTextContent();pages.push(tc.items.map(x=>x.str||'').join(' ').replace(/\s+/g,' ').trim())}return pages}catch(e){console.warn(e);return []}}
+async function bulkAddPdfs(files){const arr=[...files];if(!arr.length)return;toast(`${arr.length} PDF işleniyor…`);for(const file of arr){try{const meta=await extractPdfMetadata(file);const doi=meta?.doi||'';const cr=doi?await crossrefByDoi(doi):null;const m={...meta,...(cr||{})};const key=crypto.randomUUID();await putFile(key,file);const pages=await indexPdfFile(file);const id=crypto.randomUUID();state.indexCache[id]=pages;await putIndex(id,pages);state.articles.unshift({id,title:m.title||file.name.replace(/\.pdf$/i,''),authors:m.authors||'',year:m.year||'',journal:m.journal||'',doi:m.doi||'',courseId:state.courses[0].id,topic:state.courses[0].topics[0],tags:[],summary:'',favorite:false,thesis:false,reread:false,createdAt:Date.now(),pdfKey:key,summaryPdfKey:null,smartNotes:[]})}catch(e){console.error(e)}}save();render();toast('Toplu PDF ekleme tamamlandı')}
+
+function metaHtml(a){return`<aside class="meta-card"><h3>Makale Bilgileri</h3><dl><dt>Ders</dt><dd>${esc(courseById(a.courseId)?.name||'')}</dd><dt>Konu</dt><dd>${esc(a.topic||'')}</dd><dt>Yıl</dt><dd>${a.year||''}</dd><dt>Dergi</dt><dd>${esc(a.journal||'-')}</dd><dt>DOI</dt><dd>${esc(a.doi||'-')}</dd><dt>Durum</dt><dd>${a.reread?'Tekrar okunacak':'Okundu / normal'}</dd></dl><div class="chips">${(a.tags||[]).map(t=>`<span class="chip">#${esc(t)}</span>`).join('')}</div></aside>`}
+function showApa(list,title){setHeader(`APA 7 · ${title}`,`${list.length} kaynak`,true);const sorted=[...list].sort((a,b)=>(a.authors||'').localeCompare(b.authors||'','tr'));content.innerHTML=`<div class="apa-card"><div class="section-head" style="margin:0 0 12px"><h2>Kaynakça</h2><button class="primary-btn" id="copyAll">Tümünü Kopyala</button></div><textarea id="apaAll" readonly>${esc(sorted.map(apa).join('\n\n'))}</textarea></div>`;$('#copyAll').onclick=()=>navigator.clipboard.writeText($('#apaAll').value).then(()=>toast('Kaynakça kopyalandı'))}
+function fillCourseSelect(selected){const sel=$('#course');sel.innerHTML=state.courses.map(c=>`<option value="${c.id}" ${c.id===selected?'selected':''}>${esc(c.name)}</option>`).join('');fillTopics()}
+function fillTopics(selected){const c=courseById($('#course').value);$('#topic').innerHTML=(c?.topics||[]).map(t=>`<option ${t===selected?'selected':''}>${esc(t)}</option>`).join('')}
+
+
+function setPdfMetaStatus(message,type='info'){
+ const el=$('#pdfMetaStatus'); if(!el)return;
+ el.className=`pdf-meta-status ${type}`; el.textContent=message||'';
+}
+function cleanPdfText(s=''){return String(s).replace(/\s+/g,' ').replace(/\u00ad/g,'').trim()}
+function initialsFromGiven(given=''){return given.split(/[\s-]+/).filter(Boolean).map(x=>x[0]?.toUpperCase()+'.').join(' ')}
+function crossrefAuthors(list=[]){return list.map(a=>{const fam=cleanPdfText(a.family||'');const given=cleanPdfText(a.given||'');return fam?`${fam}, ${initialsFromGiven(given)}`:cleanPdfText(a.name||given)}).filter(Boolean).join('; ')}
+function firstValue(v){return Array.isArray(v)?v[0]:v}
+async function crossrefByDoi(doi){
+ try{
+  const clean=String(doi||'').replace(/^https?:\/\/(dx\.)?doi\.org\//i,'').trim();
+  if(!clean)return null;
+  const r=await fetch(`https://api.crossref.org/works/${encodeURIComponent(clean)}`,{headers:{'Accept':'application/json'}});
+  if(!r.ok)return null;
+  const m=(await r.json()).message||{};
+  const year=m.published?.['date-parts']?.[0]?.[0]||m.issued?.['date-parts']?.[0]?.[0]||m.created?.['date-parts']?.[0]?.[0]||'';
+  return {title:cleanPdfText(firstValue(m.title)||''),authors:crossrefAuthors(m.author||[]),year,journal:cleanPdfText(firstValue(m['container-title'])||''),doi:cleanPdfText(m.DOI||clean)};
+ }catch(e){return null}
+}
+function detectDoi(text=''){
+ const m=text.match(/10\.\d{4,9}\/[\-._;()/:A-Z0-9]+/i);
+ return m?m[0].replace(/[.,;:)\]]+$/,''):'';
+}
+function likelyYear(text=''){
+ const years=[...text.matchAll(/\b(19\d{2}|20\d{2})\b/g)].map(m=>Number(m[1])).filter(y=>y>=1900&&y<=new Date().getFullYear()+1);
+ return years[0]||'';
+}
+function guessTitleAndAuthors(lines=[]){
+ const cleaned=lines.map(cleanPdfText).filter(x=>x.length>2).slice(0,50);
+ const skip=/^(abstract|summary|özet|keywords?|doi|received|accepted|published|copyright|original article|research article|introduction)\b/i;
+ const titleCandidates=cleaned.filter(x=>!skip.test(x)&&x.length>=20&&x.length<=260&&!/^(https?:|www\.)/i.test(x));
+ let title=titleCandidates[0]||'';
+ // A title often spans 2 lines before author names.
+ if(title && title.length<90){const i=cleaned.indexOf(title);const next=cleaned[i+1]||'';if(next.length>15&&next.length<180&&!/@|\b(university|department|hospital|faculty|clinic)\b/i.test(next)&&!/[;]|\bORCID\b/i.test(next)){title=`${title} ${next}`}}
+ const ti=cleaned.findIndex(x=>title.startsWith(x));
+ const authorZone=cleaned.slice(Math.max(0,ti+1),Math.max(0,ti+7));
+ let authorLine=authorZone.find(x=>x.length<220&&(/[;,]/.test(x)||(/\b[A-ZÇĞİÖŞÜ][a-zçğıöşü]+\s+[A-ZÇĞİÖŞÜ][a-zçğıöşü]+/.test(x)))&&!/@|\b(university|department|hospital|faculty|clinic|abstract)\b/i.test(x))||'';
+ authorLine=authorLine.replace(/\d+/g,'').replace(/[∗*†‡]/g,'').replace(/\s+/g,' ').trim();
+ if(authorLine){
+  const parts=authorLine.split(/\s*(?:,|;|\band\b|\bve\b|&)\s*/i).filter(Boolean);
+  if(parts.length>1) authorLine=parts.map(n=>{const z=n.trim().split(/\s+/);if(z.length<2)return n.trim();const family=z.pop();return `${family}, ${z.map(x=>x[0]?.toUpperCase()+'.').join(' ')}`}).join('; ')
+ }
+ return {title,authors:authorLine};
+}
+async function extractPdfMetadata(file){
+ if(!file)return null;
+ if(typeof pdfjsLib==='undefined')throw new Error('PDF okuyucu yüklenemedi. İnternet bağlantısını kontrol edin.');
+ pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+ const data=await file.arrayBuffer();
+ const pdf=await pdfjsLib.getDocument({data}).promise;
+ let info={}; try{info=(await pdf.getMetadata()).info||{}}catch(e){}
+ const lines=[]; let all='';
+ for(let p=1;p<=Math.min(pdf.numPages,3);p++){
+  const page=await pdf.getPage(p);const tc=await page.getTextContent();
+  const pageLines=[];let lastY=null,current='';
+  for(const it of tc.items){const y=Math.round(it.transform?.[5]||0);if(lastY!==null&&Math.abs(y-lastY)>3){if(current.trim())pageLines.push(current.trim());current=''}current+=(current?' ':'')+(it.str||'');lastY=y}
+  if(current.trim())pageLines.push(current.trim());
+  lines.push(...pageLines); all+=' '+pageLines.join(' ');
+ }
+ const guessed=guessTitleAndAuthors(lines);
+ let result={
+  title:cleanPdfText(info.Title||guessed.title||''),
+  authors:cleanPdfText(info.Author||guessed.authors||''),
+  year:likelyYear(info.CreationDate||all),
+  journal:'',
+  doi:detectDoi(`${info.Subject||''} ${info.Keywords||''} ${all}`)
+ };
+ if(result.doi){const cr=await crossrefByDoi(result.doi);if(cr)result={...result,...Object.fromEntries(Object.entries(cr).filter(([,v])=>v))}}
+ return result;
+}
+function applyDetectedMetadata(m){
+ if(!m)return;
+ const map={title:m.title,authors:m.authors,year:m.year,journal:m.journal,doi:m.doi};
+ for(const [id,val] of Object.entries(map)){const el=$('#'+id);if(el&&val&&!el.value.trim())el.value=val}
+}
+async function autoFillFromPdf(file){
+ if(!file)return;
+ setPdfMetaStatus('PDF okunuyor; makale bilgileri otomatik aranıyor…','loading');
+ try{
+  const m=await extractPdfMetadata(file); applyDetectedMetadata(m);
+  const found=[m?.title&&'başlık',m?.authors&&'yazarlar',m?.year&&'yıl',m?.journal&&'dergi',m?.doi&&'DOI'].filter(Boolean);
+  setPdfMetaStatus(found.length?`Otomatik dolduruldu: ${found.join(', ')}. Kaydetmeden önce hızlıca kontrol edin.`:'PDF okundu ancak güvenilir künye bilgisi bulunamadı. Alanları elle doldurabilirsiniz.',found.length?'success':'warn');
+ }catch(err){setPdfMetaStatus(err.message||'PDF bilgileri otomatik okunamadı.','warn')}
+}
+
+function openArticleDialog(a=null){const f=$('#articleForm');f.dataset.editId=a?.id||'';f.reset();setPdfMetaStatus('');fillCourseSelect(a?.courseId||state.courseId||state.courses[0].id);if(a){$('#title').value=a.title||'';$('#authors').value=a.authors||'';$('#year').value=a.year||'';$('#journal').value=a.journal||'';$('#doi').value=a.doi||'';$('#course').value=a.courseId;fillTopics(a.topic);$('#topic').value=a.topic||'';$('#tags').value=(a.tags||[]).join(', ');$('#summary').value=a.summary||'';$('#favorite').checked=!!a.favorite;$('#reread').checked=!!a.reread}$('#articleDialog').showModal()}
+$('#course').addEventListener('change',()=>fillTopics());
+$('#pdfFile').addEventListener('change',e=>autoFillFromPdf(e.target.files?.[0]));
+
+$('#articleForm').addEventListener('submit',async e=>{e.preventDefault();const editId=e.currentTarget.dataset.editId;const existing=state.articles.find(a=>a.id===editId);const file=$('#pdfFile').files[0];const summaryFile=$('#summaryPdfFile').files[0];let pdfKey=existing?.pdfKey||null;let summaryPdfKey=existing?.summaryPdfKey||null;if(file){pdfKey=existing?.pdfKey||crypto.randomUUID();await putFile(pdfKey,file)}if(summaryFile){summaryPdfKey=existing?.summaryPdfKey||crypto.randomUUID();await putFile(summaryPdfKey,summaryFile)}const id=existing?.id||crypto.randomUUID();if(file){const pages=await indexPdfFile(file);state.indexCache[id]=pages;await putIndex(id,pages)}const a={id,title:$('#title').value.trim(),authors:$('#authors').value.trim(),year:Number($('#year').value)||'',journal:$('#journal').value.trim(),doi:$('#doi').value.trim(),courseId:$('#course').value,topic:$('#topic').value,tags:$('#tags').value.split(',').map(x=>x.trim()).filter(Boolean),summary:$('#summary').value,favorite:$('#favorite').checked,thesis:$('#favorite').checked,reread:$('#reread').checked,createdAt:existing?.createdAt||Date.now(),pdfKey,summaryPdfKey};if(existing)Object.assign(existing,a);else state.articles.unshift(a);save();$('#articleDialog').close();state.currentArticleId=a.id;state.view='article';state.articleTab='summary';render();toast(existing?'Makale güncellendi':'Makale eklendi')});
+$('#courseForm').addEventListener('submit',e=>{e.preventDefault();const name=$('#courseName').value.trim();const topics=$('#courseTopics').value.split(',').map(x=>x.trim()).filter(Boolean);state.courses.push({id:name.toLocaleLowerCase('tr-TR').replace(/[^a-z0-9çğıöşü]+/g,'-'),name,topics});save();$('#courseDialog').close();e.target.reset();render();toast('Yeni alan eklendi')});
+$('#addArticleBtn').onclick=()=>openArticleDialog();$('#bulkBtn').onclick=()=>$('#bulkPdfFile').click();$('#bulkPdfFile').onchange=e=>bulkAddPdfs(e.target.files).finally(()=>{e.target.value='' });
+$('#backBtn').onclick=()=>{if(state.view==='article'){state.view=state.topic?'topic':state.courseId?'course':'home'}else if(state.view==='topic'){state.view='course'}else if(state.view==='course'){state.view='home'}else state.view='home';render()};
+document.querySelectorAll('.nav-item[data-view]').forEach(b=>b.onclick=()=>{state.view=b.dataset.view;state.courseId=null;state.topic=null;state.search='';render()});
+$('#exportBtn').onclick=()=>exportFullBackup();
+$('#importBtn').onclick=()=>$('#importFile').click();$('#importFile').onchange=e=>{const file=e.target.files[0];if(file)importFullBackup(file).finally(()=>{e.target.value=''})};
+load();hydrateIndexCache().finally(()=>render());
