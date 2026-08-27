@@ -361,8 +361,15 @@ async function extractPdfMetadata(file){
 }
 function applyDetectedMetadata(m){
  if(!m)return;
+ const isEditing=!!$('#articleForm')?.dataset?.editId;
  const map={title:m.title,authors:m.authors,year:m.year,journal:m.journal,doi:m.doi};
- for(const [id,val] of Object.entries(map)){const el=$('#'+id);if(el&&val&&!el.value.trim())el.value=val}
+ for(const [id,val] of Object.entries(map)){
+  const el=$('#'+id);
+  if(!el||val===undefined||val===null||String(val).trim()==='')continue;
+  // Yeni makalede PDF/DOI metadata'sı form varsayılanlarının üzerine yazmalıdır.
+  // Düzenleme ekranında ise kullanıcının mevcut künyesini ezmemek için yalnızca boş alanları doldurur.
+  if(!isEditing || !String(el.value||'').trim()) el.value=val;
+ }
 }
 async function autoFillFromPdf(file){
  if(!file)return;
@@ -370,12 +377,12 @@ async function autoFillFromPdf(file){
  try{
   const m=await extractPdfMetadata(file); applyDetectedMetadata(m);
   const found=[m?.title&&'başlık',m?.authors&&'yazarlar',m?.year&&'yıl',m?.journal&&'dergi',m?.doi&&'DOI'].filter(Boolean);
-  const verified=m?.verifiedBy?` DOI ile doğrulandı (${m.verifiedBy}).`:' PDF içinden tahmin edildi; kaydetmeden önce kontrol edin.';
+  const verified=m?.verifiedBy?` DOI ile doğrulandı (${m.verifiedBy})${m?.year?`; yayın yılı: ${m.year}`:''}.`:' PDF içinden tahmin edildi; kaydetmeden önce kontrol edin.';
   setPdfMetaStatus(found.length?`Otomatik dolduruldu: ${found.join(', ')}.${verified}`:'PDF okundu ancak güvenilir künye bilgisi bulunamadı. Alanları elle doldurabilirsiniz.',found.length?'success':'warn');
  }catch(err){setPdfMetaStatus(err.message||'PDF bilgileri otomatik okunamadı.','warn')}
 }
 
-function openArticleDialog(a=null){const f=$('#articleForm');f.dataset.editId=a?.id||'';f.reset();setPdfMetaStatus('');fillCourseSelect(a?.courseId||state.courseId||state.courses[0].id);if(a){$('#title').value=a.title||'';$('#authors').value=a.authors||'';$('#year').value=a.year||'';$('#journal').value=a.journal||'';$('#doi').value=a.doi||'';$('#course').value=a.courseId;fillTopics(a.topic);$('#topic').value=a.topic||'';$('#tags').value=(a.tags||[]).join(', ');$('#summary').value=a.summary||'';$('#favorite').checked=!!a.favorite;$('#reread').checked=!!a.reread}$('#articleDialog').showModal()}
+function openArticleDialog(a=null){const f=$('#articleForm');f.dataset.editId=a?.id||'';f.reset();if(!a)$('#year').value='';setPdfMetaStatus('');fillCourseSelect(a?.courseId||state.courseId||state.courses[0].id);if(a){$('#title').value=a.title||'';$('#authors').value=a.authors||'';$('#year').value=a.year||'';$('#journal').value=a.journal||'';$('#doi').value=a.doi||'';$('#course').value=a.courseId;fillTopics(a.topic);$('#topic').value=a.topic||'';$('#tags').value=(a.tags||[]).join(', ');$('#summary').value=a.summary||'';$('#favorite').checked=!!a.favorite;$('#reread').checked=!!a.reread}$('#articleDialog').showModal()}
 $('#course').addEventListener('change',()=>fillTopics());
 $('#pdfFile').addEventListener('change',e=>autoFillFromPdf(e.target.files?.[0]));
 
