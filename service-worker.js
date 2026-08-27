@@ -1,4 +1,4 @@
-const CACHE_NAME = 'audiology-library-tablet-v2';
+const CACHE_NAME = 'audiology-library-tablet-v3';
 const APP_SHELL = [
   './',
   './index.html',

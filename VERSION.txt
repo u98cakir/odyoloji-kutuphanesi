@@ -1,2 +1,2 @@
-Tablet Final PWA v2.0
+Tablet Final PWA v2.1 – DOI metadata verification fix
 2026-08-27

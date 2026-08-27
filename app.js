@@ -293,8 +293,13 @@ async function crossrefByDoi(doi){
   const r=await fetch(`https://api.crossref.org/works/${encodeURIComponent(clean)}`,{headers:{'Accept':'application/json'}});
   if(!r.ok)return null;
   const m=(await r.json()).message||{};
-  const year=m.published?.['date-parts']?.[0]?.[0]||m.issued?.['date-parts']?.[0]?.[0]||m.created?.['date-parts']?.[0]?.[0]||'';
-  return {title:cleanPdfText(firstValue(m.title)||''),authors:crossrefAuthors(m.author||[]),year,journal:cleanPdfText(firstValue(m['container-title'])||''),doi:cleanPdfText(m.DOI||clean)};
+  // Publication year must come from bibliographic publication metadata, never deposit/creation year.
+  const year=m.published?.['date-parts']?.[0]?.[0]
+    ||m['published-print']?.['date-parts']?.[0]?.[0]
+    ||m['published-online']?.['date-parts']?.[0]?.[0]
+    ||m.issued?.['date-parts']?.[0]?.[0]
+    ||'';
+  return {title:cleanPdfText(firstValue(m.title)||''),authors:crossrefAuthors(m.author||[]),year,journal:cleanPdfText(firstValue(m['container-title'])||''),doi:cleanPdfText(m.DOI||clean),verifiedBy:'Crossref DOI'};
  }catch(e){return null}
 }
 function detectDoi(text=''){
@@ -345,7 +350,13 @@ async function extractPdfMetadata(file){
   journal:'',
   doi:detectDoi(`${info.Subject||''} ${info.Keywords||''} ${all}`)
  };
- if(result.doi){const cr=await crossrefByDoi(result.doi);if(cr)result={...result,...Object.fromEntries(Object.entries(cr).filter(([,v])=>v))}}
+ if(result.doi){
+  const cr=await crossrefByDoi(result.doi);
+  if(cr){
+   // DOI metadata has priority over PDF heuristics for bibliographic fields.
+   result={...result,...Object.fromEntries(Object.entries(cr).filter(([,v])=>v))};
+  }
+ }
  return result;
 }
 function applyDetectedMetadata(m){
@@ -359,7 +370,8 @@ async function autoFillFromPdf(file){
  try{
   const m=await extractPdfMetadata(file); applyDetectedMetadata(m);
   const found=[m?.title&&'başlık',m?.authors&&'yazarlar',m?.year&&'yıl',m?.journal&&'dergi',m?.doi&&'DOI'].filter(Boolean);
-  setPdfMetaStatus(found.length?`Otomatik dolduruldu: ${found.join(', ')}. Kaydetmeden önce hızlıca kontrol edin.`:'PDF okundu ancak güvenilir künye bilgisi bulunamadı. Alanları elle doldurabilirsiniz.',found.length?'success':'warn');
+  const verified=m?.verifiedBy?` DOI ile doğrulandı (${m.verifiedBy}).`:' PDF içinden tahmin edildi; kaydetmeden önce kontrol edin.';
+  setPdfMetaStatus(found.length?`Otomatik dolduruldu: ${found.join(', ')}.${verified}`:'PDF okundu ancak güvenilir künye bilgisi bulunamadı. Alanları elle doldurabilirsiniz.',found.length?'success':'warn');
  }catch(err){setPdfMetaStatus(err.message||'PDF bilgileri otomatik okunamadı.','warn')}
 }
 
