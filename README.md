@@ -122,3 +122,10 @@ Ana ekrandan açıldığında tarayıcı sekmeleri görünmeden uygulama görün
 Bu paket iPad Safari/PWA kullanımı için dokunmatik hedefleri büyütür, yatay/dikey düzeni optimize eder,
 Safari form yakınlaştırmasını azaltır, PDF araç çubuğunu tablet kullanımında sabit tutar ve PWA ikon yollarını
 GitHub Pages kök diziniyle uyumlu hale getirir. Apple Pencil ve mouse çizimi korunur; parmak gezinme için kullanılabilir.
+
+
+## v2.3 Kalem / Fosfor davranışı
+- **Fosforlu**: yalnızca PDF üzerinde kalıcı görsel hatırlatıcıdır. Sayfaya bağlı saklanır ve Notlarım'a aktarılmaz.
+- **Kalem**: PDF üzerinde kalıcıdır; kullanıcı isterse **Kalem Yazısını Nota Ekle** ile son kalem yazısının bulunduğu sayfadaki kalem anotasyonunu Notlarım'a görüntü olarak ekleyebilir.
+- Kalem notu oluşturulurken fosfor dahil edilmez. Silgi etkisi korunur.
+- Özetim / Notlarım bölümünde eklenen kalem notları görüntülenebilir, ilgili PDF sayfasına dönülebilir veya ayrı olarak silinebilir.

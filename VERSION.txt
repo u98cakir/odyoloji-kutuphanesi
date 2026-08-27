@@ -1,2 +1,2 @@
-Tablet Final PWA v2.2 – metadata year overwrite fix
+Tablet Final PWA v2.3 – pen notes / persistent marker separation
 2026-08-27
