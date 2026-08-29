@@ -1,2 +1,2 @@
-Professional Research Workspace v3.0
+Cloud Sync v4.0 – Supabase automatic sync + persistent login
 2026-08-29

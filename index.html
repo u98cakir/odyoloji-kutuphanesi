@@ -12,7 +12,28 @@
   <title>Odyoloji Makale Kütüphanesi</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
+
 <body>
+  <div id="authScreen" class="auth-screen">
+    <div class="auth-card">
+      <div class="auth-brand"><div class="brand-mark">A</div><div><strong>Odyoloji Makale Kütüphanesi</strong><span>Bulut hesabınızla giriş yapın</span></div></div>
+      <h1>Hoş geldiniz</h1>
+      <p class="auth-copy">İlk girişten sonra oturumunuz bu cihazda korunur. Çıkış yapmadığınız sürece her açılışta yeniden şifre girmeniz gerekmez.</p>
+      <form id="loginForm">
+        <label>E-posta
+          <input id="loginEmail" type="email" autocomplete="username" required placeholder="ornek@gmail.com">
+        </label>
+        <label>Şifre
+          <input id="loginPassword" type="password" autocomplete="current-password" required placeholder="••••••••">
+        </label>
+        <label class="remember-row"><input type="checkbox" id="rememberSession" checked> Bu cihazda oturumumu açık tut</label>
+        <button class="primary-btn auth-main-btn" type="submit">Giriş Yap</button>
+      </form>
+      <button class="link-btn auth-link" id="forgotPasswordBtn" type="button">Şifremi unuttum</button>
+      <div id="authMessage" class="auth-message"></div>
+      <div class="auth-security">Şifre uygulama koduna veya notlara kaydedilmez. Tarayıcınız isterse kendi parola yöneticisiyle ayrıca hatırlayabilir.</div>
+    </div>
+  </div>
   <div class="app-shell">
     <aside class="sidebar">
       <div class="brand"><div class="brand-mark">A</div><div><strong>Audiology Library</strong><span>Akademik çalışma alanı</span></div></div>
@@ -38,6 +59,10 @@
       <header class="topbar">
         <button id="backBtn" class="icon-btn hidden">‹</button>
         <div class="topbar-title"><h1 id="pageTitle">Merhaba, iyi çalışmalar! 🌿</h1><p id="pageSubtitle">Makalelerinizi, notlarınızı ve kaynakçanızı tek yerde yönetin.</p></div>
+        <div class="topbar-cloud">
+          <span id="cloudStatus" class="cloud-status cloud-offline" title="Bulut durumu">● Bağlanıyor…</span>
+          <button id="accountBtn" class="icon-btn account-btn" title="Hesap">☁</button>
+        </div>
         <button id="addArticleBtn" class="primary-btn">＋ Makale Ekle</button>
       </header>
       <section id="content"></section>
@@ -85,10 +110,32 @@
     </form>
   </dialog>
 
+
+  <dialog id="accountDialog" class="modal small-modal">
+    <div class="modal-head"><div><h2>Bulut Hesabı</h2><p id="accountEmail">Oturum bilgisi</p></div><button class="icon-btn" id="closeAccountBtn">×</button></div>
+    <div class="account-panel">
+      <div class="sync-detail"><span>Bulut senkronizasyonu</span><strong id="accountSyncState">Kontrol ediliyor…</strong></div>
+      <button class="ghost-btn" id="syncNowBtn">Şimdi Senkronize Et</button>
+      <button class="ghost-btn" id="changePasswordBtn">Şifremi Değiştir</button>
+      <button class="danger-btn" id="logoutBtn">Çıkış Yap</button>
+      <small>Çıkış yapmadığınız sürece oturum bu cihazda açık kalır.</small>
+    </div>
+  </dialog>
+
+  <dialog id="newPasswordDialog" class="modal small-modal">
+    <form id="newPasswordForm">
+      <div class="modal-head"><div><h2>Yeni Şifre</h2><p>Yeni şifrenizi belirleyin.</p></div><button class="icon-btn" value="cancel" formmethod="dialog">×</button></div>
+      <label>Yeni şifre<input id="newPassword" type="password" minlength="8" autocomplete="new-password" required></label>
+      <label>Yeni şifre tekrar<input id="newPasswordAgain" type="password" minlength="8" autocomplete="new-password" required></label>
+      <div class="modal-actions"><button type="button" class="ghost-btn" id="cancelPasswordBtn">Vazgeç</button><button class="primary-btn" type="submit">Şifreyi Güncelle</button></div>
+    </form>
+  </dialog>
+
   <input type="file" id="importFile" accept="application/zip,.zip" hidden />
   <input type="file" id="bulkPdfFile" accept="application/pdf" multiple hidden />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="app.js"></script>
 
   <script>

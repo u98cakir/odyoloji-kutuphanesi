@@ -153,3 +153,15 @@ PDF araçları artık doğrudan **Gezin / Kalem / Fosfor / Silgi** şeklindedir.
 - Excel/Word dışa aktarımlarına yapılandırılmış araştırma alanları dahil edildi.
 - Mevcut PDF, not, fosfor, kalem notu, arama, yedek ve metadata özellikleri korunmuştur.
 - Gerçek çok cihazlı bulut senkronizasyonu ve sunucu tabanlı AI bu statik GitHub Pages paketinde etkin değildir; güvenli backend aşaması gerekir.
+
+
+## v4.0 Cloud Sync
+- Supabase e-posta/şifre girişi.
+- Oturum kalıcıdır: kullanıcı Çıkış Yap demedikçe tekrar şifre istenmez.
+- Şifre düz metin olarak uygulama verilerine kaydedilmez.
+- Makale/ders/not/tez/anotasyon state değişiklikleri otomatik ve gecikmeli olarak buluta yazılır.
+- Aynı hesapla diğer cihazlar yaklaşık 10 saniyede buluttaki yeni state'i alır.
+- PDF, özet PDF ve kalem notu dosyaları Supabase Storage'a arka planda yüklenir ve yerelde yoksa buluttan indirilir.
+- IndexedDB/localStorage çevrimdışı önbellek olarak korunur.
+- Şifremi unuttum ve giriş yaptıktan sonra şifre değiştirme desteği.
+- Cloud status göstergesi ve manuel 'Şimdi Senkronize Et' kontrolü.

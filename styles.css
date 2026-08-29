@@ -140,3 +140,21 @@ canvas{touch-action:none}
 .matrix-field small{display:block;margin-top:4px;color:var(--muted);font-weight:400}
 @media(max-width:900px){.filter-panel{grid-template-columns:1fr 1fr}.thesis-overview{grid-template-columns:1fr}.literature-topic-grid,.source-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:620px){.filter-panel,.literature-topic-grid,.source-grid{grid-template-columns:1fr}}
+
+/* v4.0 Cloud Sync */
+.auth-screen{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;padding:24px;background:linear-gradient(145deg,#f8f7ff,#eef7f5)}
+.auth-screen.hidden{display:none}
+.auth-card{width:min(430px,100%);background:#fff;border:1px solid var(--line);border-radius:22px;padding:28px;box-shadow:0 24px 70px rgba(42,33,70,.14)}
+.auth-brand{display:flex;align-items:center;gap:12px;margin-bottom:24px}.auth-brand span{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+.auth-card h1{margin:0 0 8px}.auth-copy{color:var(--muted);line-height:1.55;margin:0 0 20px}
+.auth-card form{display:grid;gap:14px}.auth-card label:not(.remember-row){display:grid;gap:6px;font-weight:600;font-size:13px}
+.auth-card input[type="email"],.auth-card input[type="password"]{padding:12px 13px;border:1px solid var(--line);border-radius:11px;font:inherit}
+.remember-row{display:flex!important;align-items:center;gap:8px!important;font-size:13px!important;font-weight:500!important}
+.auth-main-btn{width:100%;justify-content:center}.auth-link{margin:12px auto 0;display:block}
+.auth-message{min-height:20px;margin-top:10px;font-size:13px;text-align:center}.auth-message.error{color:#b42318}.auth-message.success{color:#067647}
+.auth-security{margin-top:16px;padding-top:14px;border-top:1px solid var(--line);font-size:11px;color:var(--muted);line-height:1.45}
+.topbar-cloud{display:flex;align-items:center;gap:8px;margin-left:auto}.cloud-status{font-size:11px;font-weight:700;padding:6px 9px;border-radius:999px;white-space:nowrap}
+.cloud-saved{background:#ecfdf3;color:#067647}.cloud-syncing{background:#eff8ff;color:#175cd3}.cloud-pending{background:#fffaeb;color:#b54708}.cloud-offline{background:#f2f4f7;color:#475467}
+.account-btn{font-size:16px}.account-panel{display:grid;gap:12px;padding:4px 0}.sync-detail{display:flex;justify-content:space-between;gap:20px;padding:12px;border:1px solid var(--line);border-radius:12px}
+.account-panel small{color:var(--muted);line-height:1.4}.danger-btn{border:1px solid #fecdca;color:#b42318;background:#fff;padding:10px 14px;border-radius:10px;font-weight:700}
+@media(max-width:760px){.cloud-status{max-width:118px;overflow:hidden;text-overflow:ellipsis}.topbar-cloud{order:3}.auth-card{padding:22px}}

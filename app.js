@@ -1,3 +1,9 @@
+
+const SUPABASE_URL='https://fcftkhcvsgifdpwterlz.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY='sb_publishable_5M0htEiXcAaMxn824eW52g_hfsfSvcm';
+let sb=null,cloudUser=null,cloudLibraryId=null,cloudLastRevision=0,cloudSaveTimer=null,cloudPollTimer=null,cloudApplying=false,cloudReady=false,cloudUploadQueue=new Map();
+const CLOUD_POLL_MS=10000;
+
 const DEFAULT_COURSES=[
  {id:'vestibuler',name:'Vestibüler',topics:['BPPV','Ménière Hastalığı','Vestibüler Migren','VEMP','vHIT','Kalorik Test','Postürografi','Vestibüler Rehabilitasyon','Santral Vestibüler Bozukluklar','Pediatrik Vestibüler Sistem']},
  {id:'isitme-cihazlari',name:'İşitme Cihazları',topics:['Doğrulama','REM','Fitting','Yönlülük','Gürültü Azaltma']},
@@ -10,9 +16,48 @@ let state={courses:[],articles:[],view:'home',courseId:null,topic:null,currentAr
 const $=s=>document.querySelector(s), content=$('#content');
 
 async function db(){return await new Promise((resolve,reject)=>{const r=indexedDB.open('audiologyLibrary',2);r.onupgradeneeded=()=>{const d=r.result;if(!d.objectStoreNames.contains('files'))d.createObjectStore('files');if(!d.objectStoreNames.contains('textIndex'))d.createObjectStore('textIndex')};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
-async function putFile(id,file){const d=await db();return new Promise((res,rej)=>{const t=d.transaction('files','readwrite');t.objectStore('files').put(file,id);t.oncomplete=res;t.onerror=()=>rej(t.error)})}
-async function getFile(id){const d=await db();return new Promise((res,rej)=>{const t=d.transaction('files','readonly');const r=t.objectStore('files').get(id);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
-async function deleteFile(id){const d=await db();return new Promise((res,rej)=>{const t=d.transaction('files','readwrite');t.objectStore('files').delete(id);t.oncomplete=res;t.onerror=()=>rej(t.error)})}
+
+async function localPutFile(id,file){const d=await db();return new Promise((res,rej)=>{const t=d.transaction('files','readwrite');t.objectStore('files').put(file,id);t.oncomplete=res;t.onerror=()=>rej(t.error)})}
+async function localGetFile(id){const d=await db();return new Promise((res,rej)=>{const t=d.transaction('files','readonly');const r=t.objectStore('files').get(id);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+async function localDeleteFile(id){const d=await db();return new Promise((res,rej)=>{const t=d.transaction('files','readwrite');t.objectStore('files').delete(id);t.oncomplete=res;t.onerror=()=>rej(t.error)})}
+function cloudFilePath(id){return cloudLibraryId?`${cloudLibraryId}/objects/${encodeURIComponent(id)}`:null}
+async function uploadFileToCloud(id,file){
+ if(!sb||!cloudReady||!cloudLibraryId||!file)return false;
+ const path=cloudFilePath(id);
+ try{
+  setCloudStatus('syncing','Dosya yükleniyor…');
+  const {error}=await sb.storage.from('library-files').upload(path,file,{upsert:true,contentType:file.type||'application/octet-stream'});
+  if(error)throw error;
+  setCloudStatus('saved','Buluta kaydedildi ✓');
+  return true;
+ }catch(e){console.warn('Cloud file upload',e);setCloudStatus('pending','Senkronizasyon bekliyor');return false}
+}
+async function putFile(id,file){
+ await localPutFile(id,file);
+ if(cloudReady){cloudUploadQueue.set(id,file);flushCloudFileQueue()}
+}
+async function getFile(id){
+ const local=await localGetFile(id);if(local)return local;
+ if(sb&&cloudReady&&cloudLibraryId){
+  try{const {data,error}=await sb.storage.from('library-files').download(cloudFilePath(id));if(error)throw error;if(data){await localPutFile(id,data);return data}}catch(e){console.warn('Cloud file download',e)}
+ }
+ return null
+}
+async function deleteFile(id){
+ await localDeleteFile(id);
+ if(sb&&cloudReady&&cloudLibraryId){try{await sb.storage.from('library-files').remove([cloudFilePath(id)])}catch(e){console.warn(e)}}
+}
+async function flushCloudFileQueue(){
+ if(!cloudReady||!navigator.onLine)return;
+ for(const [id,file] of [...cloudUploadQueue.entries()]){if(await uploadFileToCloud(id,file))cloudUploadQueue.delete(id)}
+}
+async function migrateKnownLocalFiles(){
+ if(!cloudReady)return;
+ const keys=new Set();
+ for(const a of state.articles){if(a.pdfKey)keys.add(a.pdfKey);if(a.summaryPdfKey)keys.add(a.summaryPdfKey);for(const r of (a.inkNoteRefs||[])){if(r.key)keys.add(r.key)}}
+ for(const key of keys){const f=await localGetFile(key);if(f)cloudUploadQueue.set(key,f)}
+ flushCloudFileQueue();
+}
 async function putIndex(id,pages){const d=await db();return new Promise((res,rej)=>{const t=d.transaction('textIndex','readwrite');t.objectStore('textIndex').put(pages||[],id);t.oncomplete=res;t.onerror=()=>rej(t.error)})}
 async function getIndex(id){const d=await db();return new Promise((res,rej)=>{const t=d.transaction('textIndex','readonly');const r=t.objectStore('textIndex').get(id);r.onsuccess=()=>res(r.result||[]);r.onerror=()=>rej(r.error)})}
 async function deleteIndex(id){const d=await db();return new Promise((res,rej)=>{const t=d.transaction('textIndex','readwrite');t.objectStore('textIndex').delete(id);t.oncomplete=res;t.onerror=()=>rej(t.error)})}
@@ -21,8 +66,157 @@ function cleanLegacyAutoNoteText(text=''){return String(text)
  .replace(/(?:^|\n\n?)\[(?:El Yazısı Notu|Kenar Notu|Alıntı)\s*·[^\]]+\]\n?/g,'\n\n')
  .replace(/(?:^|\n\n?)PDF üzerindeki el yazısı\/anotasyon bu makaleye iliştirildi\.?/g,'')
  .replace(/\n{3,}/g,'\n\n').trim()}
-function load(){const saved=JSON.parse(localStorage.getItem('audiology-state')||'null');state.courses=saved?.courses||DEFAULT_COURSES;state.articles=saved?.articles||seedArticles();state.settings=saved?.settings||{};let changed=false;state.articles.forEach(a=>{const cleaned=cleanLegacyAutoNoteText(a.summary||'');if(cleaned!==(a.summary||'')){a.summary=cleaned;changed=true}a.smartNotes=a.smartNotes||[];a.pageTexts=a.pageTexts||[];a.aiSummary=a.aiSummary||null;a.thesis=!!(a.thesis||a.favorite);});if(changed)save();}
-function save(){const articles=state.articles.map(a=>{const {pageTexts,...rest}=a;return rest});localStorage.setItem('audiology-state',JSON.stringify({courses:state.courses,articles,settings:state.settings||{}}))}
+
+function normalizeLoadedState(saved){
+ state.courses=saved?.courses||DEFAULT_COURSES;
+ state.articles=saved?.articles||[];
+ state.settings=saved?.settings||{};
+ let changed=false;
+ state.articles.forEach(a=>{const cleaned=cleanLegacyAutoNoteText(a.summary||'');if(cleaned!==(a.summary||'')){a.summary=cleaned;changed=true}a.smartNotes=a.smartNotes||[];a.pageTexts=a.pageTexts||[];a.aiSummary=a.aiSummary||null;a.thesis=!!(a.thesis||a.favorite);a.readStatus=a.readStatus||'unread';a.thesisSection=a.thesisSection||'';a.research=a.research||{aim:'',sample:'',method:'',tests:'',finding:'',limits:'',relevance:''};});
+ return changed;
+}
+function load(){
+ const saved=JSON.parse(localStorage.getItem('audiology-state')||'null');
+ normalizeLoadedState(saved||{courses:DEFAULT_COURSES,articles:[],settings:{}});
+}
+function cloudStatePayload(){const articles=state.articles.map(a=>{const {pageTexts,...rest}=a;return rest});return{courses:state.courses,articles,settings:state.settings||{}}}
+function save(){
+ const payload=cloudStatePayload();
+ localStorage.setItem('audiology-state',JSON.stringify(payload));
+ if(!cloudApplying)scheduleCloudSave();
+}
+function scheduleCloudSave(){
+ if(!cloudReady||!cloudUser||!cloudLibraryId)return;
+ clearTimeout(cloudSaveTimer);
+ setCloudStatus('syncing','Kaydediliyor…');
+ cloudSaveTimer=setTimeout(()=>pushCloudState(),650);
+}
+async function pushCloudState(force=false){
+ if(!sb||!cloudReady||!cloudUser||!cloudLibraryId)return false;
+ if(!navigator.onLine){setCloudStatus('pending','İnternet bekleniyor');return false}
+ const revision=Date.now();
+ try{
+  const {error}=await sb.from('library_state').upsert({library_id:cloudLibraryId,data:cloudStatePayload(),revision,updated_by:cloudUser.id,deleted_at:null},{onConflict:'library_id'});
+  if(error)throw error;
+  cloudLastRevision=revision;
+  setCloudStatus('saved','Buluta kaydedildi ✓');
+  return true;
+ }catch(e){console.warn('Cloud state save',e);setCloudStatus('pending','Senkronizasyon bekliyor');return false}
+}
+
+function setCloudStatus(kind,text){
+ const el=document.querySelector('#cloudStatus');if(el){el.className='cloud-status cloud-'+kind;el.textContent='● '+text}
+ const a=document.querySelector('#accountSyncState');if(a)a.textContent=text;
+}
+function showAuthMessage(msg,kind=''){const el=document.querySelector('#authMessage');if(el){el.textContent=msg;el.className='auth-message '+kind}}
+function showAuthScreen(show=true){document.body.classList.toggle('cloud-authenticated',!show);const el=document.querySelector('#authScreen');if(el)el.classList.toggle('hidden',!show)}
+async function ensureCloudLibrary(){
+ const {data:libs,error}=await sb.from('libraries').select('id,name,created_at').order('created_at',{ascending:true}).limit(1);
+ if(error)throw error;
+ if(libs?.length){cloudLibraryId=libs[0].id;return cloudLibraryId}
+ const {data,error:insErr}=await sb.from('libraries').insert({name:'Odyoloji Kütüphanesi',created_by:cloudUser.id}).select('id').single();
+ if(insErr)throw insErr;
+ cloudLibraryId=data.id;return cloudLibraryId
+}
+async function pullCloudState({initial=false}={}){
+ if(!sb||!cloudLibraryId)return false;
+ try{
+  const {data,error}=await sb.from('library_state').select('data,revision,updated_at').eq('library_id',cloudLibraryId).maybeSingle();
+  if(error)throw error;
+  if(!data)return false;
+  const remote=data.data||{};
+  const remoteHasContent=Array.isArray(remote.articles)&&remote.articles.length>0;
+  const localRaw=localStorage.getItem('audiology-state');
+  const localHasSaved=!!localRaw;
+  const remoteRev=Number(data.revision||0);
+  if(initial){
+    if(remoteHasContent || !localHasSaved){
+      cloudApplying=true;normalizeLoadedState(remote);localStorage.setItem('audiology-state',JSON.stringify(cloudStatePayload()));cloudApplying=false;cloudLastRevision=remoteRev;await hydrateIndexCache();render();
+    }else{
+      await pushCloudState(true);
+    }
+  }else if(remoteRev>cloudLastRevision){
+    cloudApplying=true;normalizeLoadedState(remote);localStorage.setItem('audiology-state',JSON.stringify(cloudStatePayload()));cloudApplying=false;cloudLastRevision=remoteRev;await hydrateIndexCache();render();setCloudStatus('saved','Güncel ✓');
+  }
+  return true;
+ }catch(e){console.warn('Cloud pull',e);setCloudStatus('pending','Buluta ulaşılamıyor');return false}
+}
+async function startCloudSession(session){
+ cloudUser=session?.user||null;
+ if(!cloudUser){cloudReady=false;showAuthScreen(true);setCloudStatus('offline','Giriş gerekli');return}
+ showAuthScreen(false);setCloudStatus('syncing','Bulut hazırlanıyor…');
+ try{
+  await ensureCloudLibrary();
+  cloudReady=true;
+  await pullCloudState({initial:true});
+  setCloudStatus('saved','Buluta bağlı ✓');
+  migrateKnownLocalFiles();
+  clearInterval(cloudPollTimer);cloudPollTimer=setInterval(()=>pullCloudState(),CLOUD_POLL_MS);
+  const email=document.querySelector('#accountEmail');if(email)email.textContent=cloudUser.email||'Bulut hesabı';
+ }catch(e){console.error(e);cloudReady=false;setCloudStatus('pending','Bulut kurulumu kontrol edilmeli');toast('Bulut bağlantısı kurulamadı')}
+}
+
+const authStorage={
+ getItem(key){return localStorage.getItem(key)??sessionStorage.getItem(key)},
+ setItem(key,value){
+  const remember=localStorage.getItem('audiology-remember-session')!=='false';
+  if(remember){localStorage.setItem(key,value);sessionStorage.removeItem(key)}
+  else{sessionStorage.setItem(key,value);localStorage.removeItem(key)}
+ },
+ removeItem(key){localStorage.removeItem(key);sessionStorage.removeItem(key)}
+};
+async function bootstrapCloud(){
+ load();
+ await hydrateIndexCache();
+ render();
+ if(!window.supabase){showAuthScreen(true);showAuthMessage('Bulut kütüphanesi yüklenemedi. İnternet bağlantısını kontrol edin.','error');return}
+ sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{
+  auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:authStorage}
+ });
+ wireCloudUi();
+ const {data:{session}}=await sb.auth.getSession();
+ if(session)await startCloudSession(session);else showAuthScreen(true);
+ sb.auth.onAuthStateChange((event,session)=>{
+  if(event==='PASSWORD_RECOVERY'){showAuthScreen(false);setTimeout(()=>document.querySelector('#newPasswordDialog')?.showModal(),100)}
+  if(event==='SIGNED_IN'&&session&&!cloudReady)startCloudSession(session);
+  if(event==='SIGNED_OUT'){cloudReady=false;cloudUser=null;cloudLibraryId=null;clearInterval(cloudPollTimer);showAuthScreen(true)}
+ });
+}
+function wireCloudUi(){
+ const rememberBox=document.querySelector('#rememberSession');if(rememberBox)rememberBox.checked=localStorage.getItem('audiology-remember-session')!=='false';
+ const login=document.querySelector('#loginForm');
+ if(login)login.addEventListener('submit',async e=>{
+  e.preventDefault();showAuthMessage('Giriş yapılıyor…');
+  const email=document.querySelector('#loginEmail').value.trim(),password=document.querySelector('#loginPassword').value;
+  localStorage.setItem('audiology-remember-session',document.querySelector('#rememberSession')?.checked?'true':'false');
+  const {data,error}=await sb.auth.signInWithPassword({email,password});
+  if(error){showAuthMessage('Giriş başarısız: '+(error.message||'Bilgileri kontrol edin.'),'error');return}
+  showAuthMessage('');
+  if(data.session)await startCloudSession(data.session);
+ });
+ const forgot=document.querySelector('#forgotPasswordBtn');
+ if(forgot)forgot.onclick=async()=>{
+  const email=document.querySelector('#loginEmail').value.trim();
+  if(!email){showAuthMessage('Önce e-posta adresinizi yazın.','error');return}
+  const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:'https://u98cakir.github.io/odyoloji-kutuphanesi/'});
+  showAuthMessage(error?'Sıfırlama e-postası gönderilemedi: '+error.message:'Şifre sıfırlama bağlantısı e-postanıza gönderildi.',error?'error':'success');
+ };
+ document.querySelector('#accountBtn')?.addEventListener('click',()=>document.querySelector('#accountDialog')?.showModal());
+ document.querySelector('#closeAccountBtn')?.addEventListener('click',()=>document.querySelector('#accountDialog')?.close());
+ document.querySelector('#syncNowBtn')?.addEventListener('click',async()=>{await pushCloudState(true);await flushCloudFileQueue();toast('Senkronizasyon kontrol edildi')});
+ document.querySelector('#logoutBtn')?.addEventListener('click',async()=>{document.querySelector('#accountDialog')?.close();await sb.auth.signOut()});
+ document.querySelector('#changePasswordBtn')?.addEventListener('click',()=>{document.querySelector('#accountDialog')?.close();document.querySelector('#newPasswordDialog')?.showModal()});
+ document.querySelector('#cancelPasswordBtn')?.addEventListener('click',()=>document.querySelector('#newPasswordDialog')?.close());
+ document.querySelector('#newPasswordForm')?.addEventListener('submit',async e=>{
+  e.preventDefault();const a=document.querySelector('#newPassword').value,b=document.querySelector('#newPasswordAgain').value;
+  if(a!==b){toast('Şifreler eşleşmiyor');return}
+  const {error}=await sb.auth.updateUser({password:a});
+  if(error){toast('Şifre değiştirilemedi: '+error.message);return}
+  e.target.reset();document.querySelector('#newPasswordDialog')?.close();toast('Şifre güncellendi');
+ });
+ window.addEventListener('online',()=>{setCloudStatus('syncing','Bağlantı geldi, eşitleniyor…');pushCloudState(true);flushCloudFileQueue();pullCloudState()});
+ window.addEventListener('offline',()=>setCloudStatus('pending','Çevrimdışı · değişiklikler cihazda'));
+}
 function seedArticles(){return[
 {id:crypto.randomUUID(),title:'cVEMP Responses in Patients with Vestibular Migraine',authors:'Kim, J. H.; Park, S. H.; Lee, H.',year:2023,journal:'Otology & Neurotology',doi:'',courseId:'vestibuler',topic:'VEMP',tags:['vestibüler migren','tez'],summary:'Makalenin Amacı\nVestibüler migren hastalarında cVEMP yanıtlarını incelemek.\n\nMetodoloji\n42 vestibüler migren hastası ve sağlıklı kontrol grubu karşılaştırılmıştır.\n\nÖnemli Sonuçlar\nP13 ve N23 latanslarında farklılıklar raporlanmıştır.\n\nKendi Notlarım\nTezimin VEMP bölümünde kullanılabilir.',favorite:true,reread:false,createdAt:Date.now()-60000,pdfKey:null,summaryPdfKey:null},
 {id:crypto.randomUUID(),title:'Comparison of vHIT and Caloric Testing in Peripheral Vestibular Disorders',authors:'Yılmaz, A.; Demir, E.',year:2022,journal:'Audiology Research',doi:'',courseId:'vestibuler',topic:'vHIT',tags:['kalorik test','vhit'],summary:'vHIT ve kalorik test sonuçlarının her zaman aynı patolojiyi göstermediğini vurguluyor. Testlerin birbirini tamamlayıcı kullanımı açısından önemli.',favorite:false,reread:true,createdAt:Date.now()-30000,pdfKey:null,summaryPdfKey:null}
@@ -566,4 +760,4 @@ $('#backBtn').onclick=()=>{if(state.view==='article'){state.view=state.topic?'to
 document.querySelectorAll('.nav-item[data-view]').forEach(b=>b.onclick=()=>{state.view=b.dataset.view;state.courseId=null;state.topic=null;state.search='';render()});
 $('#exportBtn').onclick=()=>exportFullBackup();
 $('#importBtn').onclick=()=>$('#importFile').click();$('#importFile').onchange=e=>{const file=e.target.files[0];if(file)importFullBackup(file).finally(()=>{e.target.value=''})};
-load();hydrateIndexCache().finally(()=>render());
+bootstrapCloud();
