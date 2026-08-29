@@ -24,6 +24,10 @@
         <button class="nav-item" data-view="missing">▧ <span>Özeti Eksik Olanlar</span></button>
         <button class="nav-item" data-view="recent">◷ <span>Son Eklenenler</span></button>
         <button class="nav-item" data-view="thesis">★ <span>Tez Havuzu</span></button>
+        <button class="nav-item" data-view="literature">◉ <span>Güncel Literatür</span></button>
+        <button class="nav-item" data-view="matrix">▦ <span>Literatür Matrisi</span></button>
+        <button class="nav-item" data-view="thesiswork">◆ <span>Tez Çalışma Alanı</span></button>
+        <button class="nav-item" data-view="filters">≡ <span>Gelişmiş Filtreler</span></button>
         <button class="nav-item" data-view="compare">⇄ <span>Makale Karşılaştır</span></button>
         <button class="nav-item" data-view="insights">✦ <span>Akademik Asistan</span></button>
       </nav>
@@ -55,6 +59,16 @@
         <label>Alt başlık<select id="topic"></select></label>
         <label class="full">Etiketler<input id="tags" placeholder="tez, önemli, metodoloji" /></label>
         <label class="full">Kendi özetim<textarea id="summary" rows="6" placeholder="Amaç, metodoloji, sonuçlar ve kendi notlarınız..."></textarea></label>
+        <label>Okuma durumu<select id="readStatus"><option value="unread">Okunmadı</option><option value="reading">Okunuyor</option><option value="read">Okundu</option><option value="review">Tekrar incelenecek</option></select></label>
+        <label>Tez bölümü<select id="thesisSection"><option value="">Bağlanmadı</option><option>Giriş</option><option>Kuramsal Çerçeve</option><option>Literatür</option><option>Yöntem</option><option>Bulgular</option><option>Tartışma</option><option>Sonuç</option></select></label>
+        <label class="full matrix-field"><strong>Yapılandırılmış literatür matrisi</strong><small>Bu alanlar karşılaştırma ve tez çalışma ekranında kullanılır.</small></label>
+        <label>Amaç<textarea id="researchAim" rows="3" placeholder="Çalışmanın amacı"></textarea></label>
+        <label>Örneklem<textarea id="researchSample" rows="3" placeholder="n, yaş, grup özellikleri"></textarea></label>
+        <label>Yöntem<textarea id="researchMethod" rows="3" placeholder="Çalışma tasarımı / yöntem"></textarea></label>
+        <label>Kullanılan testler<textarea id="researchTests" rows="3" placeholder="Örn. VEMP, ABR, saf ses..."></textarea></label>
+        <label>Temel bulgu<textarea id="researchFinding" rows="3" placeholder="Ana sonuç"></textarea></label>
+        <label>Sınırlılıklar<textarea id="researchLimits" rows="3" placeholder="Çalışmanın sınırlılıkları"></textarea></label>
+        <label class="full">Tezim için önemi<textarea id="researchRelevance" rows="3" placeholder="Bu makale tezime nasıl katkı sağlıyor?"></textarea></label>
         <label class="check"><input id="favorite" type="checkbox" /> Tezimde kullanacağım / yıldızla</label>
         <label class="check"><input id="reread" type="checkbox" /> Tekrar okunacak</label>
       </div>

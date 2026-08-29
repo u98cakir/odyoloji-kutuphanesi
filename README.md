@@ -137,3 +137,19 @@ PDF araçları artık doğrudan **Gezin / Kalem / Fosfor / Silgi** şeklindedir.
 - Kalem: Apple Pencil veya mouse ile yazma; yalnızca Kalem yazıları isteğe bağlı olarak Notlarım'a eklenebilir.
 - Fosfor: sarı, kalıcı görsel hatırlatıcıdır; Notlarım'a aktarılmaz.
 - Silgi: PDF üzerindeki kalem ve fosfor anotasyonlarını siler.
+
+## v2.5
+- Kalem notunun Notlarım'a aktarımı iPad/Safari uyumlu SVG kayıt yöntemiyle düzeltildi.
+- Gezin modundaki seçili metin aktarımı korunmuştur.
+- Ana ekrana kişisel hediye mesajı eklenmiştir.
+
+
+## v3.0 Professional Research Workspace
+- Güncel Literatür merkezi: konu bazlı güncel PubMed aramaları ve temel odyoloji dergilerine tek tık.
+- Yapılandırılmış Literatür Matrisi: amaç, örneklem, yöntem, testler, bulgu, sınırlılık, tez önemi.
+- Tez Çalışma Alanı ve tez bölümü atama.
+- Okuma durumu: okunmadı / okunuyor / okundu / tekrar incelenecek.
+- Gelişmiş filtreler.
+- Excel/Word dışa aktarımlarına yapılandırılmış araştırma alanları dahil edildi.
+- Mevcut PDF, not, fosfor, kalem notu, arama, yedek ve metadata özellikleri korunmuştur.
+- Gerçek çok cihazlı bulut senkronizasyonu ve sunucu tabanlı AI bu statik GitHub Pages paketinde etkin değildir; güvenli backend aşaması gerekir.

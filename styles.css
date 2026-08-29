@@ -108,3 +108,35 @@ canvas{touch-action:none}
  .pdf-direct-tool{width:100%;padding:12px 8px}
  .annot-settings{width:100%;justify-content:space-between}
 }
+
+/* v2.5 — home dedication */
+.love-note{display:flex;gap:14px;align-items:flex-start;margin:0 0 20px;padding:18px 20px;border:1px solid #eadffb;border-radius:18px;background:linear-gradient(135deg,#fff 0%,#faf7ff 100%);box-shadow:0 8px 24px rgba(77,48,120,.06)}
+.love-note-heart{flex:0 0 38px;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:#f7edff;font-size:20px}
+.love-note strong{font-size:16px}
+.love-note p{margin:6px 0 0;line-height:1.65;color:var(--muted)}
+.love-note b{color:var(--text);font-weight:650}
+@media(max-width:650px){.love-note{padding:15px}.love-note-heart{display:none}.love-note p{font-size:13px}}
+
+/* v3.0 professional research workspace */
+.literature-intro,.pro-note{padding:18px 20px;border:1px solid var(--line);border-radius:16px;background:#fff;margin-bottom:18px}
+.literature-intro h2{margin:0 0 6px}.literature-intro p,.pro-note{line-height:1.6}
+.literature-topic-grid,.source-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:24px}
+.literature-topic-card,.source-card{display:flex;flex-direction:column;gap:7px;padding:18px;border:1px solid var(--line);border-radius:16px;background:#fff;text-decoration:none;color:inherit;transition:.15s ease}
+.literature-topic-card:hover,.source-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.07)}
+.literature-topic-card span,.source-card span{color:var(--muted);font-size:13px}
+.matrix-scroll{overflow:auto;border:1px solid var(--line);border-radius:16px;background:#fff}
+.matrix-table{border-collapse:collapse;width:max-content;min-width:100%}
+.matrix-table th,.matrix-table td{padding:12px 14px;border-bottom:1px solid var(--line);border-right:1px solid var(--line);vertical-align:top;max-width:260px;white-space:normal;line-height:1.45}
+.matrix-table th{position:sticky;top:0;background:#fafafa;z-index:1;text-align:left;font-size:12px}
+.matrix-title{min-width:260px}.matrix-title small{display:block;margin-top:5px;color:var(--muted)}
+.thesis-overview{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:22px}
+.thesis-section{margin-bottom:28px}.compact-empty{padding:14px}
+.filter-panel{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:18px;border:1px solid var(--line);border-radius:16px;background:#fff;margin-bottom:20px}
+.filter-panel label{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600}
+.filter-panel input,.filter-panel select{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:10px;background:#fff}
+.filter-actions{display:flex;gap:8px;align-items:end}
+.status-chip{background:#f3f4f6}.thesis-chip{background:#f7efff}
+.matrix-field{padding-top:8px;border-top:1px solid var(--line)}
+.matrix-field small{display:block;margin-top:4px;color:var(--muted);font-weight:400}
+@media(max-width:900px){.filter-panel{grid-template-columns:1fr 1fr}.thesis-overview{grid-template-columns:1fr}.literature-topic-grid,.source-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:620px){.filter-panel,.literature-topic-grid,.source-grid{grid-template-columns:1fr}}
